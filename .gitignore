@@ -33,8 +33,9 @@ go.work.sum
 # Local dev / internal files
 setup.sh
 PROMPTS.md
-*.local.txt
+test*.txt
+zzz_*.txt
 NEW_FILE.txt
 
-# Compiled binaries in examples
-examples/**/sftp-count
+# Compiled binaries in examples (binary same name as directory — match by path)
+examples/sftp-count/sftp-count

@@ -11,6 +11,11 @@ require (
 	golang.org/x/crypto v0.37.0
 )
 
+require (
+	github.com/kr/fs v0.1.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+)
+
 replace (
 	github.com/bluefunda/btp-go/binding => ../../binding
 	github.com/bluefunda/btp-go/connectivity => ../../connectivity
