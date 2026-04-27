@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - connectivity
+          - xsuaa
+          - destination
+          - binding
+          - examples/sftp-count
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+
+    env:
+      # Each module is built independently. Disabling workspace mode ensures
+      # go mod download and go test use only the module's own go.mod + replace
+      # directives (examples/sftp-count uses replace => ../../<lib>).
+      GOWORK: off
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: false  # we manage the cache manually below
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-gomod-${{ matrix.module }}-${{ hashFiles(format('{0}/go.sum', matrix.module)) }}
+          restore-keys: |
+            ${{ runner.os }}-gomod-${{ matrix.module }}-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.module }}
+          path: ${{ matrix.module }}/coverage.out
+          if-no-files-found: ignore
+
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

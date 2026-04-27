@@ -1,0 +1,10 @@
+go 1.25.0
+
+use (
+	./connectivity
+	./xsuaa
+	./destination
+	./binding
+	./sshclient
+	./examples/sftp-count
+)

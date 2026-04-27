@@ -1,0 +1,11 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-please:
+    uses: bluefunda/.github/.github/workflows/release-please.yml@main
+    secrets:
+      GH_PAT: ${{ secrets.GH_PAT }}

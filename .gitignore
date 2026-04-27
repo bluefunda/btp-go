@@ -1,0 +1,44 @@
+# Go build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Test coverage
+*.coverage
+coverage.out
+
+# Build artifacts
+dist/
+
+# Go workspace sum (auto-generated, usually committed but can be regenerated)
+go.work.sum
+
+# Environment / secrets
+.envrc
+.env
+
+# Editor artifacts
+.idea/
+.vscode/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Local dev / internal files
+setup.sh
+PROMPTS.md
+test.txt
+test2.txt
+test-write.txt
+zzz_test_write.txt
+connectivity/NEW_FILE.txt
+
+# Compiled binaries in examples
+examples/*/sftp-count
+examples/sftp-count/sftp-count
