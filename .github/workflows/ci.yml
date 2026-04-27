@@ -46,6 +46,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gomod-${{ matrix.module }}-
 
+      - name: Set artifact name
+        id: artifact
+        run: echo "name=coverage-$(echo '${{ matrix.module }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Download dependencies
         run: go mod download
 
@@ -58,7 +62,7 @@ jobs:
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.module }}
+          name: ${{ steps.artifact.outputs.name }}
           path: ${{ matrix.module }}/coverage.out
           if-no-files-found: ignore
 
