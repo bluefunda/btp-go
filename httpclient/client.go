@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -19,15 +20,50 @@ import (
 // ErrNoURL indicates the destination has no usable URL field.
 var ErrNoURL = errors.New("httpclient: destination has no URL")
 
+// TokenSource mints XSUAA bearer JWTs for proxy auth. Defined locally so
+// the package depends only on stdlib + sibling btp-go modules; xsuaa's
+// client-credentials source satisfies it via its Token(ctx) method.
+type TokenSource interface {
+	Token(ctx context.Context) (string, error)
+}
+
+// HTTPProxyConfig routes the client's transport through the SAP BTP
+// Connectivity Service's HTTP CONNECT proxy (typically
+// connectivityproxy.internal:20003). The Cloud Connector matches HTTP rules
+// against requests received via this path; SOCKS5 traffic on the same proxy
+// matches TCP rules instead. Use this for HTTP/HTTPS destinations whose SCC
+// row is configured Protocol=HTTP.
+type HTTPProxyConfig struct {
+	// ProxyHost is the connectivity proxy hostname.
+	ProxyHost string
+
+	// ProxyPort is the proxy's HTTP port (typically 20003 on CF).
+	ProxyPort string
+
+	// TokenSource issues the XSUAA JWT used for Proxy-Authorization on
+	// every outgoing request and on CONNECT preambles for HTTPS targets.
+	TokenSource TokenSource
+
+	// LocationID is the Cloud Connector location ID to route through.
+	// Empty selects the subaccount's default location.
+	LocationID string
+}
+
 // Config tunes the client returned by New.
 type Config struct {
-	// Dialer is the SAP Cloud Connector connectivity dialer. When non-nil
-	// AND the destination's ProxyType is "OnPremise", the client's
-	// transport routes every TCP open through the connectivity tunnel.
-	// Pass nil for Internet destinations or when running in a Kyma-style
-	// environment where a Transparent Proxy provides an in-cluster Service
-	// hostname (the destination's URL itself resolves to that Service).
+	// Dialer is the SAP Cloud Connector connectivity dialer (SOCKS5).
+	// When non-nil AND the destination's ProxyType is "OnPremise", the
+	// client's transport routes every TCP open through the connectivity
+	// tunnel as raw TCP — matching SCC TCP rules.
+	//
+	// For HTTP destinations whose SCC row is Protocol=HTTP, prefer the
+	// HTTPProxy field below — when both are set, HTTPProxy wins.
 	Dialer *connectivity.Dialer
+
+	// HTTPProxy routes via the connectivity proxy's HTTP CONNECT mode
+	// instead of SOCKS5. Use for HTTP destinations on CF where SCC has
+	// HTTP-protocol rules. When non-nil, Dialer is ignored.
+	HTTPProxy *HTTPProxyConfig
 
 	// TLSConfig optionally overrides the default TLS configuration used
 	// by the underlying http.Transport. The zero value uses Go defaults
@@ -66,6 +102,15 @@ func New(dest *destination.Destination, cfg Config) (*http.Client, string, error
 
 	transport := newTransport(dest, cfg)
 	rt := http.RoundTripper(transport)
+	// Inject Proxy-Authorization (and optional SCC Location_ID) on every
+	// outgoing request when routing through the HTTP CONNECT proxy.
+	if cfg.HTTPProxy != nil && cfg.HTTPProxy.TokenSource != nil {
+		rt = &proxyAuthTransport{
+			base:        rt,
+			tokenSource: cfg.HTTPProxy.TokenSource,
+			locationID:  cfg.HTTPProxy.LocationID,
+		}
+	}
 	if hdr := buildAuthHeader(dest); hdr != nil {
 		rt = &authTransport{base: rt, header: hdr}
 	}
@@ -122,14 +167,46 @@ func FetchCSRF(ctx context.Context, client *http.Client, fetchURL string) (strin
 	return tok, nil
 }
 
-// newTransport returns an *http.Transport whose DialContext is wired to
-// the BTP connectivity dialer when the destination is OnPremise and a
-// dialer is provided. Otherwise it returns a clone of http.DefaultTransport
-// with the optional TLSConfig applied.
+// newTransport returns an *http.Transport configured per cfg's routing mode:
+//
+//   - HTTPProxy != nil → Transport.Proxy points at the connectivity HTTP
+//     CONNECT proxy. TLS handshake (for HTTPS targets) happens after CONNECT
+//     succeeds. Auth headers (Proxy-Authorization, optional SCC Location_ID)
+//     are added by the wrapping proxyAuthTransport for HTTP targets, and
+//     by ProxyConnectHeader on the CONNECT preamble for HTTPS targets.
+//
+//   - Dialer != nil and ProxyType=OnPremise → DialContext routes raw TCP
+//     through the SOCKS5 connectivity dialer (matches SCC TCP rules).
+//
+//   - Otherwise → plain transport.
 func newTransport(dest *destination.Destination, cfg Config) *http.Transport {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 	if cfg.TLSConfig != nil {
 		base.TLSClientConfig = cfg.TLSConfig
+	}
+	if cfg.HTTPProxy != nil {
+		proxyURL := &url.URL{Scheme: "http", Host: net.JoinHostPort(cfg.HTTPProxy.ProxyHost, cfg.HTTPProxy.ProxyPort)}
+		base.Proxy = http.ProxyURL(proxyURL)
+		// For HTTPS targets, http.Transport sends a CONNECT preamble; the
+		// Proxy-Authorization header must accompany that CONNECT (the
+		// regular request headers don't reach the proxy on HTTPS).
+		if cfg.HTTPProxy.TokenSource != nil {
+			ts := cfg.HTTPProxy.TokenSource
+			locID := cfg.HTTPProxy.LocationID
+			base.GetProxyConnectHeader = func(ctx context.Context, _ *url.URL, _ string) (http.Header, error) {
+				tok, err := ts.Token(ctx)
+				if err != nil {
+					return nil, err
+				}
+				h := http.Header{}
+				h.Set("Proxy-Authorization", "Bearer "+tok)
+				if locID != "" {
+					h.Set("SAP-Connectivity-SCC-Location_ID", locID)
+				}
+				return h, nil
+			}
+		}
+		return base
 	}
 	if cfg.Dialer != nil && strings.EqualFold(dest.ProxyType, "OnPremise") {
 		dialer := cfg.Dialer
@@ -170,6 +247,30 @@ func buildAuthHeader(dest *destination.Destination) http.Header {
 		}
 	}
 	return nil
+}
+
+// proxyAuthTransport injects Proxy-Authorization (and optional
+// SAP-Connectivity-SCC-Location_ID) on every outgoing request — required
+// for HTTP targets routed via the connectivity HTTP CONNECT proxy. For
+// HTTPS targets the headers ride the CONNECT preamble via Transport's
+// GetProxyConnectHeader hook (see newTransport).
+type proxyAuthTransport struct {
+	base        http.RoundTripper
+	tokenSource TokenSource
+	locationID  string
+}
+
+func (t *proxyAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	tok, err := t.tokenSource.Token(req.Context())
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: proxy token: %w", err)
+	}
+	req = cloneReq(req)
+	req.Header.Set("Proxy-Authorization", "Bearer "+tok)
+	if t.locationID != "" {
+		req.Header.Set("SAP-Connectivity-SCC-Location_ID", t.locationID)
+	}
+	return t.base.RoundTrip(req)
 }
 
 // authTransport injects auth headers on every outgoing request.

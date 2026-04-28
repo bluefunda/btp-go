@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -222,6 +224,93 @@ func TestFetchCSRF_NilClient(t *testing.T) {
 	_, err := FetchCSRF(context.Background(), nil, "https://x")
 	if err == nil {
 		t.Fatal("expected error for nil client")
+	}
+}
+
+// staticToken is a TokenSource that always returns the same token.
+type staticToken string
+
+func (s staticToken) Token(_ context.Context) (string, error) { return string(s), nil }
+
+func TestNew_HTTPProxyMode(t *testing.T) {
+	// Stand up a fake "connectivity proxy" that:
+	//   - Records the incoming Proxy-Authorization
+	//   - For HTTP target: forwards to the upstream server (acts as a
+	//     simple HTTP forward proxy for the absolute-URL request line)
+	var gotProxyAuth, gotLocID string
+	var upstreamHit bool
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamHit = true
+		w.Header().Set("X-Upstream", "yes")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotProxyAuth = r.Header.Get("Proxy-Authorization")
+		gotLocID = r.Header.Get("SAP-Connectivity-SCC-Location_ID")
+		// Forward absolute-URL request to the upstream.
+		newReq, _ := http.NewRequest(r.Method, r.RequestURI, nil)
+		// Copy non-hop headers (skip Proxy-* and Connection).
+		for k, vs := range r.Header {
+			if strings.HasPrefix(strings.ToLower(k), "proxy-") || k == "Connection" {
+				continue
+			}
+			for _, v := range vs {
+				newReq.Header.Add(k, v)
+			}
+		}
+		resp, err := http.DefaultTransport.RoundTrip(newReq)
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		defer resp.Body.Close()
+		for k, vs := range resp.Header {
+			for _, v := range vs {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		_, _ = io.Copy(w, resp.Body)
+	}))
+	defer proxy.Close()
+
+	// Parse proxy host/port from the test-server URL.
+	pu, _ := url.Parse(proxy.URL)
+	pHost, pPort, _ := net.SplitHostPort(pu.Host)
+
+	dest := fakeDest(upstream.URL, "OnPremise", "")
+
+	client, base, err := New(dest, Config{
+		HTTPProxy: &HTTPProxyConfig{
+			ProxyHost:   pHost,
+			ProxyPort:   pPort,
+			TokenSource: staticToken("xsuaa-jwt-stub"),
+			LocationID:  "loc-42",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.Get(base + "/path?q=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if !upstreamHit {
+		t.Error("upstream not hit through proxy")
+	}
+	if gotProxyAuth != "Bearer xsuaa-jwt-stub" {
+		t.Errorf("Proxy-Authorization: got %q, want Bearer xsuaa-jwt-stub", gotProxyAuth)
+	}
+	if gotLocID != "loc-42" {
+		t.Errorf("SAP-Connectivity-SCC-Location_ID: got %q, want loc-42", gotLocID)
+	}
+	if resp.Header.Get("X-Upstream") != "yes" {
+		t.Error("upstream response not delivered to client")
 	}
 }
 
