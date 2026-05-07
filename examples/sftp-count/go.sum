@@ -1,3 +1,11 @@
+github.com/bluefunda/btp-go/binding v0.1.2 h1:zLhh0gN+HDpZjAntOn3phTPkU2D5VSoU+nBup2UoxSI=
+github.com/bluefunda/btp-go/binding v0.1.2/go.mod h1:9zExmsSZKZxTObR0mes0lpOv2huEKgXBpz6wtixecK8=
+github.com/bluefunda/btp-go/connectivity v0.1.2 h1:DjB2kGbLpl5hYhzNGQ0MT6sCck3j0jx9KLVfia5H2Z0=
+github.com/bluefunda/btp-go/connectivity v0.1.2/go.mod h1:tasg3jTtZ+XWqnRn6MmrE1PB3lIBRlNe9vU3ZgPgdKo=
+github.com/bluefunda/btp-go/destination v0.2.0 h1:vl8mwnkb+SxvszeMnmB4mDRQIZvgBJk7P2nqIq/vNc4=
+github.com/bluefunda/btp-go/destination v0.2.0/go.mod h1:P7ObohVbb5jUfgW66ZPuqXaAFj3cL5TzZ32rlMMAkos=
+github.com/bluefunda/btp-go/xsuaa v0.1.2 h1:RM00FqOaoFsuT4Um99c8a0vwCrwdftv0HeH95e+XGEE=
+github.com/bluefunda/btp-go/xsuaa v0.1.2/go.mod h1:rr4WuefbXoor1GSFWditOcK1gZlfG4BaQd/MM7XPayY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
