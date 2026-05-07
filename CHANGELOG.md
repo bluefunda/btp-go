@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/bluefunda/btp-go/compare/v0.2.0...v0.2.1) (2026-05-07)
+
+
+### Bug Fixes
+
+* **examples/sftp-count:** pin btp-go deps to released semver tags ([059a02e](https://github.com/bluefunda/btp-go/commit/059a02e9e8b3fe735f2a1b02c256337604ff8c46))
+
 ## [0.2.0](https://github.com/bluefunda/btp-go/compare/v0.1.2...v0.2.0) (2026-05-07)
 
 
