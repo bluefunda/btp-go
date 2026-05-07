@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bluefunda/btp-go/connectivity"
 	"github.com/bluefunda/btp-go/destination"
 )
 
@@ -25,6 +24,13 @@ var ErrNoURL = errors.New("httpclient: destination has no URL")
 // client-credentials source satisfies it via its Token(ctx) method.
 type TokenSource interface {
 	Token(ctx context.Context) (string, error)
+}
+
+// Dialer establishes a proxied TCP connection through the SAP BTP
+// Connectivity Service SOCKS5 tunnel. *connectivity.Dialer satisfies this
+// interface automatically.
+type Dialer interface {
+	Dial(ctx context.Context, host string, port uint16, locationID string) (net.Conn, error)
 }
 
 // HTTPProxyConfig routes the client's transport through the SAP BTP
@@ -58,7 +64,8 @@ type Config struct {
 	//
 	// For HTTP destinations whose SCC row is Protocol=HTTP, prefer the
 	// HTTPProxy field below — when both are set, HTTPProxy wins.
-	Dialer *connectivity.Dialer
+	// *connectivity.Dialer satisfies this interface automatically.
+	Dialer Dialer
 
 	// HTTPProxy routes via the connectivity proxy's HTTP CONNECT mode
 	// instead of SOCKS5. Use for HTTP destinations on CF where SCC has
