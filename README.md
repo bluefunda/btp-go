@@ -19,18 +19,22 @@ Foundry, Kyma, or any Go-capable runtime.
 
 ```
 consumer app
-    ├── binding/auto  (detects CF vs Kyma)
+    ├── binding/auto   (detects CF vs Kyma at runtime)
     │   ├── binding/cf    (VCAP_SERVICES)
-    │   └── binding/kyma  (stub — M4)
-    ├── connectivity  (SOCKS5 dialer)
-    ├── destination   (destination REST client)
-    └── xsuaa         (token source)
+    │   └── binding/kyma  (Servicebinding.io file layout)
+    ├── connectivity   (SOCKS5 dialer — SAP 0x80 auth)
+    ├── destination    (Destination Service REST client)
+    ├── sshclient      (SSH/SFTP over Cloud Connector tunnel)
+    ├── httpclient     (HTTP/OData client with auth + proxy wiring)
+    └── xsuaa          (token source)
 
-connectivity ──── (local TokenSource interface, satisfied by xsuaa)
-destination  ──── (local TokenSource interface, satisfied by xsuaa)
+connectivity ─── (local TokenSource interface, satisfied by xsuaa)
+destination  ─── (local TokenSource interface, satisfied by xsuaa)
+sshclient    ─── (local Dialer interface, satisfied by connectivity.Dialer)
+httpclient   ─── (local Dialer + TokenSource interfaces)
 
-Zero cross-module imports among the four library modules.
-Each module is independently go get-able after tagging.
+Zero cross-module imports among the library modules.
+Each module is independently go get-able by semver tag.
 ```
 
 ## Quickstart
@@ -59,7 +63,7 @@ go test ./...
 |-----------|-------------|
 | **M2** | Oracle consumer using `go-ora` (pure Go), layers cleanly on `net.Conn` from `connectivity.Dial` |
 | **M3** ✅ | HTTP destination support — `httpclient.New(dest, cfg)` returns a configured `*http.Client` (auth headers, Cloud Connector dialer, cookie jar) plus `FetchCSRF` for OData v2 writes |
-| **M4** | Kyma `binding` provider implementing the Servicebinding.io `/bindings/<name>/` file layout |
+| **M4** ✅ | Kyma `binding` provider — reads Servicebinding.io file-mounted secrets; handles per-key files, JSON-blob fallback, and Kubernetes atomic-update sentinels |
 | **M5** | Principal propagation and user-token-exchange flows in `xsuaa` |
 
 ## Support model
