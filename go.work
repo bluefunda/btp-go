@@ -7,5 +7,6 @@ use (
 	./destination
 	./binding
 	./sshclient
+	./httpclient
 	./examples/sftp-count
 )

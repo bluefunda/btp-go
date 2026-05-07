@@ -13,6 +13,7 @@ Foundry, Kyma, or any Go-capable runtime.
 | `destination` | `github.com/bluefunda/btp-go/destination` | Look up named destinations from the SAP Destination Service REST API |
 | `binding` | `github.com/bluefunda/btp-go/binding` | Parse service bindings from VCAP_SERVICES (CF), Kyma, or auto-detect |
 | `sshclient` | `github.com/bluefunda/btp-go/sshclient` | High-level SSH/SFTP client over the Cloud Connector tunnel (wraps connectivity + destination) |
+| `httpclient` | `github.com/bluefunda/btp-go/httpclient` | HTTP/REST/OData client wired for a Destination's auth + Cloud Connector tunnel; OData v2 CSRF helper |
 
 ## Dependency diagram
 
@@ -57,7 +58,7 @@ go test ./...
 | Milestone | Description |
 |-----------|-------------|
 | **M2** | Oracle consumer using `go-ora` (pure Go), layers cleanly on `net.Conn` from `connectivity.Dial` |
-| **M3** | HTTP destination support — `destination.HTTPClient(dest)` returns a configured `*http.Client` for cloud and on-prem destinations |
+| **M3** ✅ | HTTP destination support — `httpclient.New(dest, cfg)` returns a configured `*http.Client` (auth headers, Cloud Connector dialer, cookie jar) plus `FetchCSRF` for OData v2 writes |
 | **M4** | Kyma `binding` provider implementing the Servicebinding.io `/bindings/<name>/` file layout |
 | **M5** | Principal propagation and user-token-exchange flows in `xsuaa` |
 
