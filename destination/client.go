@@ -101,6 +101,69 @@ var knownFields = map[string]bool{
 	"CloudConnectorLocationId": true,
 }
 
+// Finder is implemented by any value that can look up a named destination.
+// *Client satisfies this interface; consumers can also supply a stub in tests
+// without spinning up an HTTP server.
+type Finder interface {
+	Find(ctx context.Context, name string) (*Destination, error)
+}
+
+// compile-time proof that *Client satisfies Finder.
+var _ Finder = (*Client)(nil)
+
+// ListAll fetches every destination visible to the service binding: both the
+// subaccount-level and the instance-level scopes. Results from both scopes are
+// merged into a single slice (subaccount first, then instance). Each call
+// invokes tokens.Token once and makes two HTTP requests.
+func (c *Client) ListAll(ctx context.Context) ([]Destination, error) {
+	tok, err := c.tokens.Token(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("destination: token: %w", err)
+	}
+	sub, err := c.listScope(ctx, tok, "subaccountDestinations")
+	if err != nil {
+		return nil, err
+	}
+	inst, err := c.listScope(ctx, tok, "instanceDestinations")
+	if err != nil {
+		return nil, err
+	}
+	return append(sub, inst...), nil
+}
+
+// listScope fetches all destinations from one scope endpoint
+// ("subaccountDestinations" or "instanceDestinations").
+func (c *Client) listScope(ctx context.Context, tok, scope string) ([]Destination, error) {
+	endpoint := c.serviceURL + "/destination-configuration/v1/" + scope
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("destination: build %s request: %w", scope, err)
+	}
+	req.Header.Set("Authorization", "Bearer "+tok)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("destination: %s request: %w", scope, err)
+	}
+	defer resp.Body.Close()
+
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("destination: %s returned %d: %s", scope, resp.StatusCode, raw)
+	}
+
+	var cfgs []map[string]string
+	if err := json.Unmarshal(raw, &cfgs); err != nil {
+		return nil, fmt.Errorf("destination: decode %s response: %w", scope, err)
+	}
+
+	dests := make([]Destination, 0, len(cfgs))
+	for _, cfg := range cfgs {
+		dests = append(dests, *extractDestination(destEnvelope{DestinationConfiguration: cfg}))
+	}
+	return dests, nil
+}
+
 // extractDestination maps the raw destinationConfiguration map to a typed
 // Destination. Unknown fields are collected into Properties.
 func extractDestination(env destEnvelope) *Destination {

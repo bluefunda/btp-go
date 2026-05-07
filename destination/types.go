@@ -71,3 +71,18 @@ type AuthToken struct {
 	// token for this destination.
 	Error string `json:"error"`
 }
+
+// BestAuthToken returns the first AuthToken whose Error field is empty.
+// The Destination Service may return multiple tokens (e.g. one per auth
+// method); this helper picks the first valid one so callers don't have to
+// iterate and filter manually.
+// Returns (token, true) when a valid token is found, (AuthToken{}, false)
+// when AuthTokens is empty or all entries carry errors.
+func (d *Destination) BestAuthToken() (AuthToken, bool) {
+	for _, t := range d.AuthTokens {
+		if t.Error == "" {
+			return t, true
+		}
+	}
+	return AuthToken{}, false
+}

@@ -10,16 +10,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bluefunda/btp-go/connectivity"
 	"github.com/bluefunda/btp-go/destination"
 	"golang.org/x/crypto/ssh"
 )
 
+// Dialer opens a TCP connection to a remote host. *connectivity.Dialer
+// satisfies this interface, as does any in-process fake for testing.
+type Dialer interface {
+	Dial(ctx context.Context, host string, port uint16, locationID string) (net.Conn, error)
+}
+
 // Config controls how SSH sessions are established.
 type Config struct {
-	// Dialer is the SAP BTP Connectivity SOCKS5 dialer used to reach the
-	// destination's host. Required.
-	Dialer *connectivity.Dialer
+	// Dialer opens the underlying TCP connection to the destination host.
+	// Pass *connectivity.Dialer for real BTP traffic, or any Dialer
+	// implementation for testing. Required.
+	Dialer Dialer
 
 	// RetryOpts controls backoff on transient handshake errors. The zero
 	// value disables retry (one attempt only).
