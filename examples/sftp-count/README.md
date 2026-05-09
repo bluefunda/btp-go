@@ -5,6 +5,29 @@ A minimal Cloud Foundry application that exposes:
 - `GET /sftp/count?destination=<name>` — returns the number of files in the remote directory configured on the named BTP destination.
 - `GET /healthz` — liveness check.
 
+## About this example
+
+`sftp-count` wires SSH at the **primitive level**: it calls `connectivity.Dialer.Dial`
+to get a raw `net.Conn`, then builds `ssh.ClientConfig` by hand, calls
+`ssh.NewClientConn`, and assembles `ssh.NewClient` itself. There is no retry
+logic for transient sshd `MaxStartups` rejections.
+
+This is intentional — it exists to show how the low-level `connectivity` and
+`destination` primitives compose with `golang.org/x/crypto/ssh` when you need
+full control over the SSH handshake.
+
+**For new code, prefer [`examples/sftp-sshclient`](../sftp-sshclient/) instead.**
+That example uses `sshclient.Dial`, which wraps all of the above — port parsing,
+`ssh.ClientConfig` assembly from destination properties, and exponential-backoff
+retry — in a single call:
+
+```go
+sshc, err := sshclient.Dial(ctx, sshclient.Config{
+    Dialer:    dialer,
+    RetryOpts: sshclient.RetryOpts{MaxAttempts: 4, BaseDelay: 200 * time.Millisecond, Jitter: true},
+}, dest)
+```
+
 ## Prerequisites
 
 - SAP BTP Cloud Foundry subaccount

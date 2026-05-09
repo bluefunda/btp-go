@@ -34,13 +34,19 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v) //nolint:errcheck
 }
 
-// sftpCountHandler returns an http.HandlerFunc that:
+// sftpCountHandler returns an http.HandlerFunc that counts files on a remote
+// SFTP server by wiring the low-level primitives directly:
 //  1. Looks up the destination by name from the Destination Service.
 //  2. Parses dest.Port as uint16.
 //  3. Dials through the SOCKS5 proxy via the Connectivity Service.
 //  4. Establishes an SSH connection using credentials from dest.Properties.
 //  5. Opens an SFTP client and reads the directory at dest.Properties["RemotePath"].
 //  6. Returns the file count as JSON.
+//
+// NOTE: this low-level wiring is kept here to illustrate how connectivity and
+// destination compose with golang.org/x/crypto/ssh. For production code use
+// sshclient.Dial instead — it handles steps 2–4 (port parsing, ClientConfig
+// assembly, MaxStartups retry) in a single call. See examples/sftp-sshclient.
 func sftpCountHandler(destClient *destination.Client, dialer *connectivity.Dialer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
