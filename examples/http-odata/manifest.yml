@@ -1,0 +1,11 @@
+applications:
+  - name: btp-go-http-odata
+    memory: 128M
+    instances: 1
+    buildpacks: [go_buildpack]
+    env:
+      GOVERSION: go1.25
+    services:
+      - my-xsuaa
+      - my-destination
+      - my-connectivity

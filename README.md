@@ -50,9 +50,28 @@ cf push
 curl "https://<app-route>/sftp/count?destination=MY_SFTP_DEST"
 ```
 
-**HTTP / OData destinations** — see the package-level examples in
-[`httpclient`](httpclient/example_test.go): wiring a destination to an
-`*http.Client`, calling OData, and the CSRF-token / cookie-jar write flow.
+**HTTP / OData destinations** — [`examples/http-odata`](examples/http-odata/)
+is a complete Cloud Foundry app that proxies OData reads and writes through
+`httpclient`, wired via the Connectivity HTTP CONNECT proxy (port 20003) with
+automatic CSRF-token / cookie-jar handling.
+
+```bash
+cd examples/http-odata
+cf push
+curl "https://<app-route>/odata?destination=MY_HTTP_DEST&path=/Items?%24top=5"
+curl -X POST "https://<app-route>/odata?destination=MY_HTTP_DEST&path=/Items" \
+  -H "Content-Type: application/json" -d '{"Name":"test"}'
+```
+
+**SFTP via sshclient** — [`examples/sftp-sshclient`](examples/sftp-sshclient/)
+shows the same SFTP count use-case as `sftp-count` but uses `sshclient.Dial`
+(the high-level wrapper with retry) instead of raw `golang.org/x/crypto/ssh`.
+
+```bash
+cd examples/sftp-sshclient
+cf push
+curl "https://<app-route>/sftp/count?destination=MY_SFTP_DEST"
+```
 
 ## Local development
 
