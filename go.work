@@ -1,12 +1,12 @@
-go 1.25.0
+go 1.25.10
 
 use (
 	.
-	./connectivity
-	./xsuaa
-	./destination
 	./binding
-	./sshclient
-	./httpclient
+	./connectivity
+	./destination
 	./examples/sftp-count
+	./httpclient
+	./sshclient
+	./xsuaa
 )
