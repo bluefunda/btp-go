@@ -1,0 +1,10 @@
+module github.com/bluefunda/btp-go/examples/http-odata
+
+go 1.25.10
+
+require (
+	github.com/bluefunda/btp-go/binding v0.1.2
+	github.com/bluefunda/btp-go/destination v0.2.0
+	github.com/bluefunda/btp-go/httpclient v0.1.0
+	github.com/bluefunda/btp-go/xsuaa v0.1.2
+)

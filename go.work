@@ -5,7 +5,9 @@ use (
 	./binding
 	./connectivity
 	./destination
+	./examples/http-odata
 	./examples/sftp-count
+	./examples/sftp-sshclient
 	./httpclient
 	./sshclient
 	./xsuaa
