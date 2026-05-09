@@ -6,10 +6,40 @@ A minimal Cloud Foundry application that exposes:
   directory configured on the named BTP destination
 - `GET /healthz` — liveness check
 
+## How it works
+
+```
+Startup — main.go
+  binding/auto
+    ├── xsuaa binding      ──► xsuaa.TokenSource
+    ├── destination binding──► destination.Client   (Destination Service API)
+    └── connectivity binding──► connectivity.Dialer (SOCKS5 proxy, port 20004)
+
+Per request — GET /sftp/count?destination=MY_SFTP_DEST
+
+  destination.Client.Find("MY_SFTP_DEST")
+            │
+            ▼
+  Destination{host, port, user, sshKey, RemotePath}
+            │
+            ├─────────────── connectivity.Dialer
+            ▼
+  sshclient.Dial()      ← opens SOCKS5 tunnel through Cloud Connector
+            │              and performs SSH handshake using dest credentials
+            ▼
+      *ssh.Client
+            │
+  sftp.NewClient(sshc)
+            │
+      *sftp.Client
+            │
+  ReadDir(RemotePath) ──► JSON {destination, remotePath, count, elapsedMs}
+```
+
 ## How it differs from sftp-count
 
 `sftp-count` dials raw SSH manually: it calls `connectivity.Dialer.Dial`,
-builds an `*ssh.ClientConfig` by hand, and calls `ssh.NewClientConn`.
+builds `*ssh.ClientConfig` by hand, and calls `ssh.NewClientConn` — no retry.
 
 This example uses `sshclient.Dial` instead — the high-level wrapper that
 handles port parsing, SSH config assembly from destination properties
