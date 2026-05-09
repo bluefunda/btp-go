@@ -39,14 +39,20 @@ Each module is independently go get-able by semver tag.
 
 ## Quickstart
 
-See [`examples/sftp-count`](examples/sftp-count/) for a complete Cloud Foundry
-app that counts files on a remote SFTP server via the Cloud Connector.
+**SFTP over Cloud Connector** — [`examples/sftp-count`](examples/sftp-count/)
+is a complete Cloud Foundry app that counts files on a remote SFTP server via
+the Cloud Connector, exercising `binding`, `xsuaa`, `connectivity`, and
+`destination` end-to-end.
 
 ```bash
 cd examples/sftp-count
 cf push
 curl "https://<app-route>/sftp/count?destination=MY_SFTP_DEST"
 ```
+
+**HTTP / OData destinations** — see the package-level examples in
+[`httpclient`](httpclient/example_test.go): wiring a destination to an
+`*http.Client`, calling OData, and the CSRF-token / cookie-jar write flow.
 
 ## Local development
 
@@ -57,14 +63,15 @@ go build ./...
 go test ./...
 ```
 
-## Future milestones
+## Milestones
 
-| Milestone | Description |
-|-----------|-------------|
-| **M2** | Oracle consumer using `go-ora` (pure Go), layers cleanly on `net.Conn` from `connectivity.Dial` |
-| **M3** ✅ | HTTP destination support — `httpclient.New(dest, cfg)` returns a configured `*http.Client` (auth headers, Cloud Connector dialer, cookie jar) plus `FetchCSRF` for OData v2 writes |
-| **M4** ✅ | Kyma `binding` provider — reads Servicebinding.io file-mounted secrets; handles per-key files, JSON-blob fallback, and Kubernetes atomic-update sentinels |
-| **M5** | Principal propagation and user-token-exchange flows in `xsuaa` |
+| Milestone | Status | Description |
+|-----------|--------|-------------|
+| **M1** | ✅ shipped | Core modules: `xsuaa`, `connectivity`, `destination`, `binding` (CF + Kyma), `sshclient` |
+| **M2** | planned | Oracle consumer using `go-ora` (pure Go), layers cleanly on `net.Conn` from `connectivity.Dial` |
+| **M3** | ✅ shipped | HTTP destination support — `httpclient.New(dest, cfg)` returns a configured `*http.Client` (auth headers, Cloud Connector dialer, cookie jar) plus `FetchCSRF` for OData v2 writes |
+| **M4** | ✅ shipped | Kyma `binding` provider — reads Servicebinding.io file-mounted secrets; handles per-key files, JSON-blob fallback, and Kubernetes atomic-update sentinels |
+| **M5** | planned | Principal propagation and user-token-exchange flows in `xsuaa` |
 
 ## Support model
 
