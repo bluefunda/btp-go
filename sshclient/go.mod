@@ -1,6 +1,6 @@
 module github.com/bluefunda/btp-go/sshclient
 
-go 1.25.0
+go 1.25.10
 
 require (
 	github.com/bluefunda/btp-go/connectivity v0.0.0-20260427152307-2cf3010a09c8

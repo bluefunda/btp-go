@@ -1,6 +1,6 @@
 module github.com/bluefunda/btp-go/httpclient
 
-go 1.25.0
+go 1.25.10
 
 require (
 	github.com/bluefunda/btp-go/connectivity v0.1.2
