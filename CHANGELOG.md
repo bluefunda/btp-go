@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/bluefunda/btp-go/compare/v0.2.1...v0.3.0) (2026-05-10)
+
+
+### Features
+
+* **examples:** add http-odata and sftp-sshclient example apps ([#6](https://github.com/bluefunda/btp-go/issues/6)) ([bc1e3c8](https://github.com/bluefunda/btp-go/commit/bc1e3c84f27f0239073f84161b5cfc425c666a5e))
+
+
+### Bug Fixes
+
+* bump go directive to 1.25.10 to resolve govulncheck stdlib CVEs ([#3](https://github.com/bluefunda/btp-go/issues/3)) ([a7b7832](https://github.com/bluefunda/btp-go/commit/a7b7832449cdfb5e6d8b779fdaed92a7bc4d7932))
+* **ci:** trigger CI on release-please branches ([#7](https://github.com/bluefunda/btp-go/issues/7)) ([d9be261](https://github.com/bluefunda/btp-go/commit/d9be2610532ad5ca18106048c2e6acf2421e6333))
+
 ## [0.2.1](https://github.com/bluefunda/btp-go/compare/v0.2.0...v0.2.1) (2026-05-07)
 
 
