@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/bluefunda/btp-go/compare/v0.3.0...v0.4.0) (2026-05-11)
+
+
+### Features
+
+* **httpclient:** HTTP CONNECT proxy transport for BTP on-prem destinations ([#8](https://github.com/bluefunda/btp-go/issues/8)) ([33bab37](https://github.com/bluefunda/btp-go/commit/33bab3740ca373bda4e256f8eb815b60ff717b24))
+
+
+### Bug Fixes
+
+* **examples/http-odata:** update to httpclient v0.1.1 API ([#10](https://github.com/bluefunda/btp-go/issues/10)) ([eaf03b5](https://github.com/bluefunda/btp-go/commit/eaf03b58e981d1412341c982d65b7713058b7c34))
+
 ## [0.3.0](https://github.com/bluefunda/btp-go/compare/v0.2.1...v0.3.0) (2026-05-10)
 
 
