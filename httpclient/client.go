@@ -3,6 +3,7 @@ package httpclient
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -13,15 +14,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bluefunda/btp-go/binding"
 	"github.com/bluefunda/btp-go/destination"
+	"github.com/bluefunda/btp-go/xsuaa"
 )
 
 // ErrNoURL indicates the destination has no usable URL field.
 var ErrNoURL = errors.New("httpclient: destination has no URL")
 
-// TokenSource mints XSUAA bearer JWTs for proxy auth. Defined locally so
-// the package depends only on stdlib + sibling btp-go modules; xsuaa's
-// client-credentials source satisfies it via its Token(ctx) method.
+// TokenSource mints XSUAA bearer JWTs for proxy auth. *xsuaa.clientCredentialsSource
+// satisfies this interface via its Token(ctx) method.
 type TokenSource interface {
 	Token(ctx context.Context) (string, error)
 }
@@ -40,19 +42,13 @@ type Dialer interface {
 // matches TCP rules instead. Use this for HTTP/HTTPS destinations whose SCC
 // row is configured Protocol=HTTP.
 type HTTPProxyConfig struct {
-	// ProxyHost is the connectivity proxy hostname.
-	ProxyHost string
+	// Binding is the resolved connectivity service binding. The proxy host,
+	// port, and XSUAA credentials are all read from here.
+	Binding *binding.ConnectivityBinding
 
-	// ProxyPort is the proxy's HTTP port (typically 20003 on CF).
-	ProxyPort string
-
-	// TokenSource issues the XSUAA JWT used for Proxy-Authorization on
-	// every outgoing request and on CONNECT preambles for HTTPS targets.
+	// TokenSource overrides the XSUAA token source derived from Binding.
+	// Leave nil in production; set to a stub in tests.
 	TokenSource TokenSource
-
-	// LocationID is the Cloud Connector location ID to route through.
-	// Empty selects the subaccount's default location.
-	LocationID string
 }
 
 // Config tunes the client returned by New.
@@ -107,19 +103,37 @@ func New(dest *destination.Destination, cfg Config) (*http.Client, string, error
 		return nil, "", fmt.Errorf("%w: %q", ErrNoURL, dest.Name)
 	}
 
-	transport := newTransport(dest, cfg)
+	// Resolve the connectivity proxy token source once so both the per-request
+	// Proxy-Authorization header and the HTTPS CONNECT preamble share a cache.
+	var connTokenSrc TokenSource
+	if cfg.HTTPProxy != nil {
+		if cfg.HTTPProxy.Binding == nil {
+			return nil, "", errors.New("httpclient: HTTPProxyConfig.Binding is required")
+		}
+		connTokenSrc = cfg.HTTPProxy.TokenSource
+		if connTokenSrc == nil {
+			connTokenSrc = xsuaa.NewClientCredentialsSource(xsuaa.Config{
+				ClientID:     cfg.HTTPProxy.Binding.ClientID,
+				ClientSecret: cfg.HTTPProxy.Binding.ClientSecret,
+				TokenURL:     cfg.HTTPProxy.Binding.TokenServiceURL + "/oauth/token",
+			})
+		}
+	}
+
+	transport := newTransport(dest, cfg, connTokenSrc)
 	rt := http.RoundTripper(transport)
-	// Inject Proxy-Authorization (and optional SCC Location_ID) on every
-	// outgoing request when routing through the HTTP CONNECT proxy.
-	if cfg.HTTPProxy != nil && cfg.HTTPProxy.TokenSource != nil {
+	// Inject Proxy-Authorization (and SAP-Connectivity-SCC-Location_ID when
+	// the destination carries a CloudConnectorLocationId) on every outgoing
+	// request when routing through the HTTP CONNECT proxy.
+	if connTokenSrc != nil {
 		rt = &proxyAuthTransport{
 			base:        rt,
-			tokenSource: cfg.HTTPProxy.TokenSource,
-			locationID:  cfg.HTTPProxy.LocationID,
+			tokenSource: connTokenSrc,
+			locationID:  dest.CloudConnectorLocationID,
 		}
 	}
 	if hdr := buildAuthHeader(dest); hdr != nil {
-		rt = &authTransport{base: rt, header: hdr}
+		rt = &headerTransport{base: rt, header: hdr}
 	}
 	if len(cfg.ExtraHeaders) > 0 {
 		rt = &headerTransport{base: rt, header: cfg.ExtraHeaders.Clone()}
@@ -186,22 +200,22 @@ func FetchCSRF(ctx context.Context, client *http.Client, fetchURL string) (strin
 //     through the SOCKS5 connectivity dialer (matches SCC TCP rules).
 //
 //   - Otherwise → plain transport.
-func newTransport(dest *destination.Destination, cfg Config) *http.Transport {
+func newTransport(dest *destination.Destination, cfg Config, connTokenSrc TokenSource) *http.Transport {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 	if cfg.TLSConfig != nil {
 		base.TLSClientConfig = cfg.TLSConfig
 	}
 	if cfg.HTTPProxy != nil {
-		proxyURL := &url.URL{Scheme: "http", Host: net.JoinHostPort(cfg.HTTPProxy.ProxyHost, cfg.HTTPProxy.ProxyPort)}
+		b := cfg.HTTPProxy.Binding
+		proxyURL := &url.URL{Scheme: "http", Host: net.JoinHostPort(b.OnpremiseProxyHost, b.OnpremiseProxyHTTPPort)}
 		base.Proxy = http.ProxyURL(proxyURL)
 		// For HTTPS targets, http.Transport sends a CONNECT preamble; the
 		// Proxy-Authorization header must accompany that CONNECT (the
 		// regular request headers don't reach the proxy on HTTPS).
-		if cfg.HTTPProxy.TokenSource != nil {
-			ts := cfg.HTTPProxy.TokenSource
-			locID := cfg.HTTPProxy.LocationID
+		if connTokenSrc != nil {
+			locID := dest.CloudConnectorLocationID
 			base.GetProxyConnectHeader = func(ctx context.Context, _ *url.URL, _ string) (http.Header, error) {
-				tok, err := ts.Token(ctx)
+				tok, err := connTokenSrc.Token(ctx)
 				if err != nil {
 					return nil, err
 				}
@@ -233,8 +247,11 @@ func newTransport(dest *destination.Destination, cfg Config) *http.Transport {
 	return base
 }
 
-// buildAuthHeader picks the first usable AuthToken's HTTPHeader. Returns
-// nil if no AuthTokens are present or all are error states.
+// buildAuthHeader derives the Authorization header for dest. Priority:
+//  1. First error-free AuthToken (OAuth/SAML tokens returned by the Destination Service).
+//  2. BasicAuthentication via the User/Password fields on the destination config.
+//
+// Returns nil when neither source is present; the caller's own header is left intact.
 func buildAuthHeader(dest *destination.Destination) http.Header {
 	for _, t := range dest.AuthTokens {
 		if t.Error != "" {
@@ -245,15 +262,32 @@ func buildAuthHeader(dest *destination.Destination) http.Header {
 			h.Set(t.HTTPHeader.Key, t.HTTPHeader.Value)
 			return h
 		}
-		// Fall back to constructing "Authorization: <Type> <Value>" if
-		// the destination service didn't pre-build the HTTPHeader.
 		if t.Type != "" && t.Value != "" {
 			h := http.Header{}
 			h.Set("Authorization", t.Type+" "+t.Value)
 			return h
 		}
 	}
+	// BasicAuthentication: user/password fields from the destination config.
+	// Properties["User"] / Properties["Password"] cover the capitalised keys
+	// that SAP services sometimes use alongside the lowercase canonical fields.
+	user := firstNonEmpty(dest.User, dest.Properties["User"])
+	if user != "" {
+		pass := firstNonEmpty(dest.Password, dest.Properties["Password"])
+		h := http.Header{}
+		h.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(user+":"+pass)))
+		return h
+	}
 	return nil
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // proxyAuthTransport injects Proxy-Authorization (and optional
@@ -272,7 +306,7 @@ func (t *proxyAuthTransport) RoundTrip(req *http.Request) (*http.Response, error
 	if err != nil {
 		return nil, fmt.Errorf("httpclient: proxy token: %w", err)
 	}
-	req = cloneReq(req)
+	req = req.Clone(req.Context())
 	req.Header.Set("Proxy-Authorization", "Bearer "+tok)
 	if t.locationID != "" {
 		req.Header.Set("SAP-Connectivity-SCC-Location_ID", t.locationID)
@@ -280,33 +314,15 @@ func (t *proxyAuthTransport) RoundTrip(req *http.Request) (*http.Response, error
 	return t.base.RoundTrip(req)
 }
 
-// authTransport injects auth headers on every outgoing request.
-type authTransport struct {
-	base   http.RoundTripper
-	header http.Header
-}
-
-func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = cloneReq(req)
-	for k, vs := range t.header {
-		if req.Header.Get(k) != "" {
-			continue // caller already set it
-		}
-		for _, v := range vs {
-			req.Header.Add(k, v)
-		}
-	}
-	return t.base.RoundTrip(req)
-}
-
-// headerTransport applies an arbitrary header set on every request.
+// headerTransport applies a set of default headers to every outgoing request,
+// skipping any key the caller has already set.
 type headerTransport struct {
 	base   http.RoundTripper
 	header http.Header
 }
 
 func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = cloneReq(req)
+	req = req.Clone(req.Context())
 	for k, vs := range t.header {
 		if req.Header.Get(k) != "" {
 			continue
@@ -316,13 +332,4 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 	return t.base.RoundTrip(req)
-}
-
-func cloneReq(req *http.Request) *http.Request {
-	r2 := *req
-	r2.Header = req.Header.Clone()
-	if r2.Header == nil {
-		r2.Header = http.Header{}
-	}
-	return &r2
 }
