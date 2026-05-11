@@ -11,4 +11,5 @@ use (
 	./httpclient
 	./sshclient
 	./xsuaa
+	../odata-go
 )

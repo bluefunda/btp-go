@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bluefunda/btp-go/binding"
 	"github.com/bluefunda/btp-go/destination"
 )
 
@@ -75,6 +77,62 @@ func TestNew_AttachesAuthHeader(t *testing.T) {
 
 	if got, want := gotAuth, "Bearer tok-abc"; got != want {
 		t.Errorf("Authorization: got %q, want %q", got, want)
+	}
+}
+
+func TestNew_BasicAuthentication(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	d := &destination.Destination{
+		Name:      "basic-dest",
+		Type:      "HTTP",
+		ProxyType: "Internet",
+		URL:       srv.URL,
+		User:      "alice",
+		Password:  "s3cr3t",
+	}
+	client, base, err := New(d, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.Get(base + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	want := "Basic " + base64.StdEncoding.EncodeToString([]byte("alice:s3cr3t"))
+	if gotAuth != want {
+		t.Errorf("Authorization: got %q, want %q", gotAuth, want)
+	}
+}
+
+func TestNew_BasicAuthentication_PropertiesFallback(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+	}))
+	defer srv.Close()
+
+	d := &destination.Destination{
+		Name:       "basic-dest",
+		Type:       "HTTP",
+		ProxyType:  "Internet",
+		URL:        srv.URL,
+		Properties: map[string]string{"User": "bob", "Password": "pass"},
+	}
+	client, base, _ := New(d, Config{})
+	resp, _ := client.Get(base + "/")
+	resp.Body.Close()
+
+	want := "Basic " + base64.StdEncoding.EncodeToString([]byte("bob:pass"))
+	if gotAuth != want {
+		t.Errorf("Authorization: got %q, want %q", gotAuth, want)
 	}
 }
 
@@ -282,13 +340,15 @@ func TestNew_HTTPProxyMode(t *testing.T) {
 	pHost, pPort, _ := net.SplitHostPort(pu.Host)
 
 	dest := fakeDest(upstream.URL, "OnPremise", "")
+	dest.CloudConnectorLocationID = "loc-42"
 
 	client, base, err := New(dest, Config{
 		HTTPProxy: &HTTPProxyConfig{
-			ProxyHost:   pHost,
-			ProxyPort:   pPort,
-			TokenSource: staticToken("xsuaa-jwt-stub"),
-			LocationID:  "loc-42",
+			Binding: &binding.ConnectivityBinding{
+				OnpremiseProxyHost:     pHost,
+				OnpremiseProxyHTTPPort: pPort,
+			},
+			TokenSource: staticToken("xsuaa-jwt-stub"), // test override; nil in production
 		},
 	})
 	if err != nil {
