@@ -101,3 +101,5 @@ issue for bug reports or enhancement proposals.
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+Authored by Amish Kushwaha, open-sourced under Apache 2.0 by BlueFunda, Inc.
