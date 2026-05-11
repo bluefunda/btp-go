@@ -41,21 +41,7 @@ func main() {
 	})
 	destClient := destination.NewClient(db.URI, destSrc, nil)
 
-	connSrc := xsuaa.NewClientCredentialsSource(xsuaa.Config{
-		ClientID:     cb.ClientID,
-		ClientSecret: cb.ClientSecret,
-		TokenURL:     cb.TokenServiceURL + "/oauth/token",
-	})
-
-	// HTTPProxyConfig routes OnPremise HTTP destinations through the Cloud
-	// Connector HTTP CONNECT proxy (port 20003). The handler checks
-	// dest.ProxyType per request and only applies this for OnPremise
-	// destinations; Internet destinations skip it automatically.
-	proxy := &httpclient.HTTPProxyConfig{
-		ProxyHost:   cb.OnpremiseProxyHost,
-		ProxyPort:   cb.OnpremiseProxyHTTPPort,
-		TokenSource: connSrc,
-	}
+	proxy := &httpclient.HTTPProxyConfig{Binding: cb}
 
 	h := &odataHandler{destClient: destClient, httpProxy: proxy}
 
