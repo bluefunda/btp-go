@@ -1,5 +1,8 @@
 # btp-go
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/bluefunda/btp-go.svg)](https://pkg.go.dev/github.com/bluefunda/btp-go)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 A Go workspace monorepo of small, focused, stdlib-only libraries for consuming
 SAP BTP (Business Technology Platform) services from Go applications — on Cloud
 Foundry, Kyma, or any Go-capable runtime.
