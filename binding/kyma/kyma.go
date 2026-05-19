@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/bluefunda/btp-go/binding"
@@ -191,7 +192,7 @@ func readBindingDir(dir string) (map[string]string, error) {
 				case string:
 					out[k] = x
 				case float64:
-					out[k] = strings.TrimRight(strings.TrimRight(fmt.Sprintf("%f", x), "0"), ".")
+					out[k] = strconv.FormatFloat(x, 'f', -1, 64)
 				case bool:
 					out[k] = fmt.Sprintf("%t", x)
 				}

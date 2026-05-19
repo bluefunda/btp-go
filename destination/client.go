@@ -10,10 +10,12 @@ import (
 	"strings"
 )
 
-// TokenSource is the interface for obtaining a bearer JWT. It is defined
-// locally so that the destination module remains stdlib-only. Any concrete
-// type that implements Token(ctx) (string, error) satisfies it — including
-// xsuaa.NewClientCredentialsSource().
+// TokenSource is the interface for obtaining a bearer JWT.
+//
+// This interface is structurally identical to xsuaa.TokenSource and is
+// satisfied by the value returned from xsuaa.NewClientCredentialsSource.
+// It is redeclared here so that the destination module remains stdlib-only
+// and does not import the xsuaa module.
 type TokenSource interface {
 	Token(ctx context.Context) (string, error)
 }

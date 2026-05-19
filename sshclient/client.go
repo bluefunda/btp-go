@@ -85,10 +85,12 @@ func Dial(ctx context.Context, cfg Config, dest *destination.Destination) (*ssh.
 			if cfg.RetryOpts.Jitter {
 				delay += time.Duration(rand.Int64N(int64(delay) / 2))
 			}
+			timer := time.NewTimer(delay)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return nil, ctx.Err()
-			case <-time.After(delay):
+			case <-timer.C:
 			}
 		}
 		client, err := dialOnce(ctx, cfg, dest)
