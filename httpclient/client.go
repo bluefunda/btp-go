@@ -268,26 +268,15 @@ func buildAuthHeader(dest *destination.Destination) http.Header {
 			return h
 		}
 	}
-	// BasicAuthentication: user/password fields from the destination config.
-	// Properties["User"] / Properties["Password"] cover the capitalised keys
-	// that SAP services sometimes use alongside the lowercase canonical fields.
-	user := firstNonEmpty(dest.User, dest.Properties["User"])
-	if user != "" {
-		pass := firstNonEmpty(dest.Password, dest.Properties["Password"])
+	// BasicAuthentication: resolved via Destination helpers that check both
+	// the top-level User/Password fields and Properties["User"/"Password"].
+	if user := dest.ResolvedUser(); user != "" {
+		pass := dest.ResolvedPassword()
 		h := http.Header{}
 		h.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(user+":"+pass)))
 		return h
 	}
 	return nil
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // proxyAuthTransport injects Proxy-Authorization (and optional

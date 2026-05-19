@@ -1,5 +1,10 @@
 package destination
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Destination holds the resolved fields of a BTP Destination Service entry.
 type Destination struct {
 	// Name is the logical destination name as configured in the BTP cockpit.
@@ -85,4 +90,34 @@ func (d *Destination) BestAuthToken() (AuthToken, bool) {
 		}
 	}
 	return AuthToken{}, false
+}
+
+// PortNum parses the Port field as a uint16. Returns an error when Port is
+// empty or not a valid port number. Callers that previously called
+// strconv.ParseUint on dest.Port directly should use this instead.
+func (d *Destination) PortNum() (uint16, error) {
+	n, err := strconv.ParseUint(d.Port, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("destination: invalid port %q: %w", d.Port, err)
+	}
+	return uint16(n), nil
+}
+
+// ResolvedUser returns the configured username. It checks the User field
+// first, then Properties["User"]. Returns an empty string when neither is set.
+func (d *Destination) ResolvedUser() string {
+	if d.User != "" {
+		return d.User
+	}
+	return d.Properties["User"]
+}
+
+// ResolvedPassword returns the configured password. It checks the Password
+// field first, then Properties["Password"]. Returns an empty string when
+// neither is set.
+func (d *Destination) ResolvedPassword() string {
+	if d.Password != "" {
+		return d.Password
+	}
+	return d.Properties["Password"]
 }

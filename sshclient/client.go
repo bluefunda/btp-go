@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 
@@ -105,12 +104,12 @@ func Dial(ctx context.Context, cfg Config, dest *destination.Destination) (*ssh.
 
 // dialOnce performs a single Dial attempt without retry.
 func dialOnce(ctx context.Context, cfg Config, dest *destination.Destination) (*ssh.Client, error) {
-	portNum, err := strconv.ParseUint(dest.Port, 10, 16)
+	portNum, err := dest.PortNum()
 	if err != nil {
-		return nil, fmt.Errorf("sshclient: invalid port %q: %w", dest.Port, err)
+		return nil, fmt.Errorf("sshclient: %w", err)
 	}
 
-	conn, err := cfg.Dialer.Dial(ctx, dest.Host, uint16(portNum), dest.CloudConnectorLocationID)
+	conn, err := cfg.Dialer.Dial(ctx, dest.Host, portNum, dest.CloudConnectorLocationID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,16 +132,17 @@ func dialOnce(ctx context.Context, cfg Config, dest *destination.Destination) (*
 	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
-// SSHConfigFromDestination builds an *ssh.ClientConfig from User/Password
-// (top-level fields) and Properties["User"|"Password"|"sshKey"].
-//
-// Auth precedence: if Properties["sshKey"] is present it is parsed as a
-// PEM private key and added as ssh.PublicKeys; if a non-empty Password (or
-// Properties["Password"]) is present it is added as ssh.Password. At
-// least one must be configured. The default HostKeyCallback is
+// SSHConfigFromDestination builds an *ssh.ClientConfig from the destination.
+// User is resolved via dest.ResolvedUser(), defaulting to "root" when unset.
+// Password is resolved via dest.ResolvedPassword(). If Properties["sshKey"]
+// is set it is parsed as a PEM private key and added as ssh.PublicKeys.
+// At least one auth method must be present. The default HostKeyCallback is
 // ssh.InsecureIgnoreHostKey.
 func SSHConfigFromDestination(dest *destination.Destination) (*ssh.ClientConfig, error) {
-	user := firstNonEmpty(dest.User, dest.Properties["User"], "root")
+	user := dest.ResolvedUser()
+	if user == "" {
+		user = "root"
+	}
 	var auth []ssh.AuthMethod
 	if key := dest.Properties["sshKey"]; key != "" {
 		signer, err := ssh.ParsePrivateKey([]byte(key))
@@ -151,8 +151,7 @@ func SSHConfigFromDestination(dest *destination.Destination) (*ssh.ClientConfig,
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
-	pass := firstNonEmpty(dest.Password, dest.Properties["Password"])
-	if pass != "" {
+	if pass := dest.ResolvedPassword(); pass != "" {
 		auth = append(auth, ssh.Password(pass))
 	}
 	if len(auth) == 0 {
@@ -184,11 +183,3 @@ func IsTransientSSHError(err error) bool {
 	return false
 }
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
