@@ -27,17 +27,17 @@ func writeBinding(t *testing.T, root, name string, fields map[string]string) {
 func TestProvider_Connectivity(t *testing.T) {
 	root := t.TempDir()
 	writeBinding(t, root, "my-conn", map[string]string{
-		"type":                         "connectivity",
-		"clientid":                     "cid-123",
-		"clientsecret":                 "csecret",
-		"token_service_url":            "https://uaa.example/oauth/token",
-		"onpremise_proxy_host":         "connectivity-proxy.kyma-system.svc.cluster.local",
-		"onpremise_socks5_proxy_port":  "20003",
-		"onpremise_proxy_http_port":    "20004",
+		"type":                        "connectivity",
+		"clientid":                    "cid-123",
+		"clientsecret":                "csecret",
+		"token_service_url":           "https://uaa.example/oauth/token",
+		"onpremise_proxy_host":        "connectivity-proxy.kyma-system.svc.cluster.local",
+		"onpremise_socks5_proxy_port": "20003",
+		"onpremise_proxy_http_port":   "20004",
 	})
 
 	p := NewProvider(WithRoot(root))
-	got, err := p.Connectivity("")
+	got, err := binding.Connectivity(p, "")
 	if err != nil {
 		t.Fatalf("Connectivity: unexpected error: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestProvider_Destination_TokenURLFallback(t *testing.T) {
 		"url":          "https://uaa.example",
 	})
 	p := NewProvider(WithRoot(root))
-	got, err := p.Destination("")
+	got, err := binding.Destination(p, "")
 	if err != nil {
 		t.Fatalf("Destination: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestProvider_XSUAA(t *testing.T) {
 		"uaadomain":    "authentication.eu10.hana.ondemand.com",
 	})
 	p := NewProvider(WithRoot(root))
-	got, err := p.XSUAA("")
+	got, err := binding.XSUAA(p, "")
 	if err != nil {
 		t.Fatalf("XSUAA: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestProvider_NameDisambiguation(t *testing.T) {
 	})
 
 	p := NewProvider(WithRoot(root))
-	got, err := p.Connectivity("second-conn")
+	got, err := binding.Connectivity(p, "second-conn")
 	if err != nil {
 		t.Fatalf("Connectivity(second-conn): %v", err)
 	}
@@ -122,12 +122,12 @@ func TestProvider_NotFound(t *testing.T) {
 		"type": "destination",
 	})
 	p := NewProvider(WithRoot(root))
-	_, err := p.Connectivity("")
+	_, err := binding.Connectivity(p, "")
 	if !errors.Is(err, binding.ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 
-	_, err = p.Connectivity("nonexistent")
+	_, err = binding.Connectivity(p, "nonexistent")
 	if !errors.Is(err, binding.ErrNotFound) {
 		t.Errorf("expected ErrNotFound for explicit name, got %v", err)
 	}
@@ -137,7 +137,7 @@ func TestProvider_NotFound(t *testing.T) {
 // at a path that does not exist (e.g. running locally without bindings).
 func TestProvider_RootMissing(t *testing.T) {
 	p := NewProvider(WithRoot("/this-path-does-not-exist-xyz"))
-	_, err := p.Connectivity("")
+	_, err := binding.Connectivity(p, "")
 	if !errors.Is(err, binding.ErrNotFound) {
 		t.Errorf("expected ErrNotFound for missing root, got %v", err)
 	}
@@ -159,7 +159,7 @@ func TestProvider_AtomicUpdateSentinels(t *testing.T) {
 		"clientid": "real",
 	})
 	p := NewProvider(WithRoot(root))
-	got, err := p.Connectivity("")
+	got, err := binding.Connectivity(p, "")
 	if err != nil {
 		t.Fatalf("Connectivity: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestProvider_CredentialsBlobFallback(t *testing.T) {
 		"credentials": `{"clientid":"from-blob","clientsecret":"sec","onpremise_proxy_host":"proxy.local"}`,
 	})
 	p := NewProvider(WithRoot(root))
-	got, err := p.Connectivity("")
+	got, err := binding.Connectivity(p, "")
 	if err != nil {
 		t.Fatalf("Connectivity: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/bluefunda/btp-go/binding"
 	"github.com/bluefunda/btp-go/binding/auto"
 	"github.com/bluefunda/btp-go/connectivity"
 	"github.com/bluefunda/btp-go/destination"
@@ -24,17 +25,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	xb, err := prov.XSUAA("")
+	xb, err := binding.XSUAA(prov, "")
 	if err != nil {
 		slog.Error("xsuaa binding", "err", err)
 		os.Exit(1)
 	}
-	db, err := prov.Destination("")
+	db, err := binding.Destination(prov, "")
 	if err != nil {
 		slog.Error("destination binding", "err", err)
 		os.Exit(1)
 	}
-	cb, err := prov.Connectivity("")
+	cb, err := binding.Connectivity(prov, "")
 	if err != nil {
 		slog.Error("connectivity binding", "err", err)
 		os.Exit(1)

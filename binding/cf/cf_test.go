@@ -66,7 +66,7 @@ func makeProvider(t *testing.T) *Provider {
 
 func TestConnectivityBinding(t *testing.T) {
 	p := makeProvider(t)
-	b, err := p.Connectivity("")
+	b, err := binding.Connectivity(p, "")
 	if err != nil {
 		t.Fatalf("Connectivity: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestConnectivityBinding(t *testing.T) {
 
 func TestDestinationBinding(t *testing.T) {
 	p := makeProvider(t)
-	b, err := p.Destination("")
+	b, err := binding.Destination(p, "")
 	if err != nil {
 		t.Fatalf("Destination: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestDestinationBinding(t *testing.T) {
 
 func TestXSUAABinding(t *testing.T) {
 	p := makeProvider(t)
-	b, err := p.XSUAA("")
+	b, err := binding.XSUAA(p, "")
 	if err != nil {
 		t.Fatalf("XSUAA: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestXSUAABinding(t *testing.T) {
 
 func TestXSUAABinding_SelectByName(t *testing.T) {
 	p := makeProvider(t)
-	b, err := p.XSUAA("my-xsuaa-secondary")
+	b, err := binding.XSUAA(p, "my-xsuaa-secondary")
 	if err != nil {
 		t.Fatalf("XSUAA(secondary): %v", err)
 	}
@@ -131,7 +131,7 @@ func TestErrNotFound_MissingService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewProvider: %v", err)
 	}
-	_, err = p.Connectivity("")
+	_, err = binding.Connectivity(p, "")
 	if !errors.Is(err, binding.ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
@@ -139,7 +139,7 @@ func TestErrNotFound_MissingService(t *testing.T) {
 
 func TestErrNotFound_WrongInstanceName(t *testing.T) {
 	p := makeProvider(t)
-	_, err := p.XSUAA("nonexistent-name")
+	_, err := binding.XSUAA(p, "nonexistent-name")
 	if !errors.Is(err, binding.ErrNotFound) {
 		t.Errorf("expected ErrNotFound for wrong name, got %v", err)
 	}

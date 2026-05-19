@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/bluefunda/btp-go/binding"
 	"github.com/bluefunda/btp-go/binding/auto"
 	"github.com/bluefunda/btp-go/destination"
 	"github.com/bluefunda/btp-go/httpclient"
@@ -23,12 +24,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := prov.Destination("")
+	db, err := binding.Destination(prov, "")
 	if err != nil {
 		slog.Error("destination binding", "err", err)
 		os.Exit(1)
 	}
-	cb, err := prov.Connectivity("")
+	cb, err := binding.Connectivity(prov, "")
 	if err != nil {
 		slog.Error("connectivity binding", "err", err)
 		os.Exit(1)

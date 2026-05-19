@@ -3,14 +3,15 @@
 //
 // Service instances are looked up by service label ("connectivity",
 // "destination", "xsuaa"). When multiple instances of the same label exist,
-// pass the instance name to the Provider method to select the correct one;
-// pass "" to select the first.
+// pass the instance name to Binding to select the correct one; pass "" to
+// select the first.
 package cf
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/bluefunda/btp-go/binding"
 )
@@ -60,83 +61,27 @@ func (p *Provider) findCredentials(label, name string) (json.RawMessage, error) 
 	return nil, fmt.Errorf("%w: service %q instance %q not found", binding.ErrNotFound, label, name)
 }
 
-// Connectivity returns the ConnectivityBinding for the named connectivity
-// service instance (pass "" for the first).
-func (p *Provider) Connectivity(name string) (*binding.ConnectivityBinding, error) {
-	raw, err := p.findCredentials("connectivity", name)
+// Binding returns the raw key/value credentials for the named service instance.
+// Numeric JSON values are converted to their decimal string representation.
+func (p *Provider) Binding(serviceType, name string) (map[string]string, error) {
+	raw, err := p.findCredentials(serviceType, name)
 	if err != nil {
 		return nil, err
 	}
-	var creds struct {
-		ClientID                string `json:"clientid"`
-		ClientSecret            string `json:"clientsecret"`
-		TokenServiceURL         string `json:"token_service_url"`
-		OnpremiseProxyHost      string `json:"onpremise_proxy_host"`
-		OnpremiseSocks5ProxyPort string `json:"onpremise_socks5_proxy_port"`
-		OnpremiseProxyHTTPPort  string `json:"onpremise_proxy_http_port"`
+	var obj map[string]any
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, fmt.Errorf("cf: decode %s credentials: %w", serviceType, err)
 	}
-	if err := json.Unmarshal(raw, &creds); err != nil {
-		return nil, fmt.Errorf("cf: decode connectivity credentials: %w", err)
+	out := make(map[string]string, len(obj))
+	for k, v := range obj {
+		switch x := v.(type) {
+		case string:
+			out[k] = x
+		case float64:
+			out[k] = strconv.FormatFloat(x, 'f', -1, 64)
+		case bool:
+			out[k] = strconv.FormatBool(x)
+		}
 	}
-	return &binding.ConnectivityBinding{
-		ClientID:                 creds.ClientID,
-		ClientSecret:             creds.ClientSecret,
-		TokenServiceURL:          creds.TokenServiceURL,
-		OnpremiseProxyHost:       creds.OnpremiseProxyHost,
-		OnpremiseProxySocks5Port: creds.OnpremiseSocks5ProxyPort,
-		OnpremiseProxyHTTPPort:   creds.OnpremiseProxyHTTPPort,
-	}, nil
-}
-
-// Destination returns the DestinationBinding for the named destination
-// service instance (pass "" for the first).
-func (p *Provider) Destination(name string) (*binding.DestinationBinding, error) {
-	raw, err := p.findCredentials("destination", name)
-	if err != nil {
-		return nil, err
-	}
-	var creds struct {
-		ClientID        string `json:"clientid"`
-		ClientSecret    string `json:"clientsecret"`
-		URI             string `json:"uri"`
-		URL             string `json:"url"`              // token base URL (destination service)
-		TokenServiceURL string `json:"token_service_url"` // alternate name used in some regions
-	}
-	if err := json.Unmarshal(raw, &creds); err != nil {
-		return nil, fmt.Errorf("cf: decode destination credentials: %w", err)
-	}
-	tokenSvcURL := creds.TokenServiceURL
-	if tokenSvcURL == "" {
-		tokenSvcURL = creds.URL
-	}
-	return &binding.DestinationBinding{
-		ClientID:        creds.ClientID,
-		ClientSecret:    creds.ClientSecret,
-		URI:             creds.URI,
-		TokenServiceURL: tokenSvcURL,
-	}, nil
-}
-
-// XSUAA returns the XSUAABinding for the named xsuaa service instance
-// (pass "" for the first).
-func (p *Provider) XSUAA(name string) (*binding.XSUAABinding, error) {
-	raw, err := p.findCredentials("xsuaa", name)
-	if err != nil {
-		return nil, err
-	}
-	var creds struct {
-		ClientID     string `json:"clientid"`
-		ClientSecret string `json:"clientsecret"`
-		URL          string `json:"url"`
-		UAAdomain    string `json:"uaadomain"`
-	}
-	if err := json.Unmarshal(raw, &creds); err != nil {
-		return nil, fmt.Errorf("cf: decode xsuaa credentials: %w", err)
-	}
-	return &binding.XSUAABinding{
-		ClientID:     creds.ClientID,
-		ClientSecret: creds.ClientSecret,
-		URL:          creds.URL,
-		UAADomain:    creds.UAAdomain,
-	}, nil
+	return out, nil
 }

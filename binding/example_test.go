@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/bluefunda/btp-go/binding"
 	"github.com/bluefunda/btp-go/binding/auto"
 	"github.com/bluefunda/btp-go/binding/cf"
 )
@@ -15,7 +16,7 @@ func ExampleProvider() {
 		log.Fatal(err)
 	}
 
-	cb, err := prov.Connectivity("")
+	cb, err := binding.Connectivity(prov, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,7 +30,7 @@ func ExampleNewProvider_cloudFoundry() {
 		log.Fatal(err)
 	}
 
-	db, err := prov.Destination("")
+	db, err := binding.Destination(prov, "")
 	if err != nil {
 		log.Fatal(err)
 	}

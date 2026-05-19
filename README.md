@@ -40,6 +40,34 @@ Zero cross-module imports among the library modules.
 Each module is independently go get-able by semver tag.
 ```
 
+### Binding API
+
+The `binding.Provider` interface has a single method:
+
+```go
+type Provider interface {
+    Binding(serviceType, name string) (map[string]string, error)
+}
+```
+
+Typed credentials are returned by package-level extractor functions:
+
+```go
+import (
+    "github.com/bluefunda/btp-go/binding"
+    "github.com/bluefunda/btp-go/binding/auto"
+)
+
+prov, _ := auto.NewProvider()
+
+cb, _ := binding.Connectivity(prov, "")   // *binding.ConnectivityBinding
+db, _ := binding.Destination(prov, "")   // *binding.DestinationBinding
+xb, _ := binding.XSUAA(prov, "")         // *binding.XSUAABinding
+```
+
+Adding support for a new SAP service type requires only a new extractor
+function, not a change to the `Provider` interface.
+
 ## Quickstart
 
 **SFTP over Cloud Connector** — [`examples/sftp-count`](examples/sftp-count/)
