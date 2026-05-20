@@ -16,3 +16,11 @@ require (
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 )
+
+replace (
+	github.com/bluefunda/btp-go/binding => ../../binding
+	github.com/bluefunda/btp-go/connectivity => ../../connectivity
+	github.com/bluefunda/btp-go/destination => ../../destination
+	github.com/bluefunda/btp-go/sshclient => ../../sshclient
+	github.com/bluefunda/btp-go/xsuaa => ../../xsuaa
+)

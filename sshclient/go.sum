@@ -1,7 +1,3 @@
-github.com/bluefunda/btp-go/connectivity v0.0.0-20260427152307-2cf3010a09c8 h1:WxKWGdMeVUzZrAUMez+dM+TWYyg0+ATkOmN6xD0ChTI=
-github.com/bluefunda/btp-go/connectivity v0.0.0-20260427152307-2cf3010a09c8/go.mod h1:tasg3jTtZ+XWqnRn6MmrE1PB3lIBRlNe9vU3ZgPgdKo=
-github.com/bluefunda/btp-go/destination v0.0.0-20260427152307-2cf3010a09c8 h1:0ux0C0neI8wH15ykXLUx8TXT3/v4aPui0z4kmJjVI/w=
-github.com/bluefunda/btp-go/destination v0.0.0-20260427152307-2cf3010a09c8/go.mod h1:P7ObohVbb5jUfgW66ZPuqXaAFj3cL5TzZ32rlMMAkos=
 golang.org/x/crypto v0.50.0 h1:zO47/JPrL6vsNkINmLoo/PH1gcxpls50DNogFvB5ZGI=
 golang.org/x/crypto v0.50.0/go.mod h1:3muZ7vA7PBCE6xgPX7nkzzjiUq87kRItoJQM1Yo8S+Q=
 golang.org/x/sys v0.43.0 h1:Rlag2XtaFTxp19wS8MXlJwTvoh8ArU6ezoyFsMyCTNI=
