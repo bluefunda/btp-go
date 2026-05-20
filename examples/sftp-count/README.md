@@ -1,5 +1,7 @@
 # sftp-count example
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/bluefunda/btp-go/examples/sftp-count.svg)](https://pkg.go.dev/github.com/bluefunda/btp-go/examples/sftp-count)
+
 A minimal Cloud Foundry application that exposes:
 
 - `GET /sftp/count?destination=<name>` — returns the number of files in the remote directory configured on the named BTP destination.

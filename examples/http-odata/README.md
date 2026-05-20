@@ -1,5 +1,7 @@
 # http-odata example
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/bluefunda/btp-go/examples/http-odata.svg)](https://pkg.go.dev/github.com/bluefunda/btp-go/examples/http-odata)
+
 A minimal Cloud Foundry application demonstrating `httpclient` wired end-to-end
 with SAP BTP service bindings. It exposes two endpoints:
 

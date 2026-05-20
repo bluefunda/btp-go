@@ -87,8 +87,9 @@ These helpers remove the need for inline `strconv.ParseUint` calls and manual
 
 ## Quickstart
 
-**SFTP over Cloud Connector** — [`examples/sftp-count`](examples/sftp-count/)
-is a complete Cloud Foundry app that counts files on a remote SFTP server via
+**SFTP over Cloud Connector** — [`examples/sftp-count`](examples/sftp-count/) [![Go Reference](https://pkg.go.dev/badge/github.com/bluefunda/btp-go/examples/sftp-count.svg)](https://pkg.go.dev/github.com/bluefunda/btp-go/examples/sftp-count)
+
+A complete Cloud Foundry app that counts files on a remote SFTP server via
 the Cloud Connector, exercising `binding`, `xsuaa`, `connectivity`, and
 `destination` end-to-end.
 
@@ -98,8 +99,9 @@ cf push
 curl "https://<app-route>/sftp/count?destination=MY_SFTP_DEST"
 ```
 
-**HTTP / OData destinations** — [`examples/http-odata`](examples/http-odata/)
-is a complete Cloud Foundry app that proxies OData reads and writes through
+**HTTP / OData destinations** — [`examples/http-odata`](examples/http-odata/) [![Go Reference](https://pkg.go.dev/badge/github.com/bluefunda/btp-go/examples/http-odata.svg)](https://pkg.go.dev/github.com/bluefunda/btp-go/examples/http-odata)
+
+A complete Cloud Foundry app that proxies OData reads and writes through
 `httpclient`, wired via the Connectivity HTTP CONNECT proxy (port 20003) with
 automatic CSRF-token / cookie-jar handling.
 
