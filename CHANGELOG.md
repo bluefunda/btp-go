@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.0](https://github.com/bluefunda/btp-go/compare/v0.4.0...v1.0.0) (2026-05-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* redesign binding.Provider; remove destination.Finder ([#15](https://github.com/bluefunda/btp-go/issues/15))
+
+### Features
+
+* add PortNum, ResolvedUser, ResolvedPassword to Destination ([#14](https://github.com/bluefunda/btp-go/issues/14)) ([5bd8ea3](https://github.com/bluefunda/btp-go/commit/5bd8ea3de9b0923290de7ebcedad9326dfa981a1))
+
+
+### Bug Fixes
+
+* safe correctness fixes across modules ([#13](https://github.com/bluefunda/btp-go/issues/13)) ([574f74e](https://github.com/bluefunda/btp-go/commit/574f74e0a794381af72e9bca908ad9e294c5a713))
+
+
+### Code Refactoring
+
+* redesign binding.Provider; remove destination.Finder ([#15](https://github.com/bluefunda/btp-go/issues/15)) ([5a5c9b4](https://github.com/bluefunda/btp-go/commit/5a5c9b40f72bc6651586dccf8040b911ca431204))
+
 ## [0.4.0](https://github.com/bluefunda/btp-go/compare/v0.3.0...v0.4.0) (2026-05-11)
 
 
