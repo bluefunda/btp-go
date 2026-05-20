@@ -19,7 +19,11 @@ jobs:
           - xsuaa
           - destination
           - binding
+          - sshclient
+          - httpclient
           - examples/sftp-count
+          - examples/sftp-sshclient
+          - examples/http-odata
 
     defaults:
       run:
@@ -28,7 +32,7 @@ jobs:
     env:
       # Each module is built independently. Disabling workspace mode ensures
       # go mod download and go test use only the module's own go.mod + replace
-      # directives (examples/sftp-count uses replace => ../../<lib>).
+      # directives (sibling module paths wired via replace => ../<lib>).
       GOWORK: off
 
     steps:

@@ -103,16 +103,6 @@ var knownFields = map[string]bool{
 	"CloudConnectorLocationId": true,
 }
 
-// Finder is implemented by any value that can look up a named destination.
-// *Client satisfies this interface; consumers can also supply a stub in tests
-// without spinning up an HTTP server.
-type Finder interface {
-	Find(ctx context.Context, name string) (*Destination, error)
-}
-
-// compile-time proof that *Client satisfies Finder.
-var _ Finder = (*Client)(nil)
-
 // ListAll fetches every destination visible to the service binding: both the
 // subaccount-level and the instance-level scopes. Results from both scopes are
 // merged into a single slice (subaccount first, then instance). Each call

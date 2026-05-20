@@ -140,44 +140,6 @@ func TestFind_Non200ReturnsError(t *testing.T) {
 	}
 }
 
-// ---- Finder interface test ----
-
-// stubFinder is a test double that satisfies the Finder interface.
-type stubFinder struct {
-	dest *Destination
-	err  error
-}
-
-func (s *stubFinder) Find(_ context.Context, _ string) (*Destination, error) {
-	return s.dest, s.err
-}
-
-func TestFinderInterface_StubSatisfiesInterface(t *testing.T) {
-	var f Finder = &stubFinder{dest: &Destination{Name: "STUB"}}
-	d, err := f.Find(context.Background(), "anything")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if d.Name != "STUB" {
-		t.Errorf("Name = %q, want STUB", d.Name)
-	}
-}
-
-func TestFinderInterface_ClientSatisfiesInterface(t *testing.T) {
-	srv := newTestServer(t, http.StatusOK, fixtureResponse)
-	defer srv.Close()
-	// *Client must be assignable to Finder — verified at compile time by the
-	// var _ Finder = (*Client)(nil) assertion in client.go.
-	var f Finder = NewClient(srv.URL, &staticTokenSource{tok: "tok"}, nil)
-	d, err := f.Find(context.Background(), "MY_SFTP")
-	if err != nil {
-		t.Fatalf("Find via Finder: %v", err)
-	}
-	if d.Name != "MY_SFTP" {
-		t.Errorf("Name = %q, want MY_SFTP", d.Name)
-	}
-}
-
 // ---- BestAuthToken tests ----
 
 func TestBestAuthToken_ReturnsFirstValidToken(t *testing.T) {

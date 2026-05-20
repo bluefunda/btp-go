@@ -15,9 +15,9 @@
 // The Kubernetes Secret/Volume projection inserts atomic-update sentinels
 // (".." prefixed names) which this package filters out. Subdirectory names
 // are arbitrary labels chosen at bind time; service kind is determined by
-// the contents of the "type" file. Pass an explicit binding name to a
-// Provider method to disambiguate when multiple bindings of the same kind
-// exist.
+// the contents of the "type" file. Pass an explicit binding name to Binding
+// or to the typed extractor functions in the binding package to disambiguate
+// when multiple bindings of the same kind exist.
 //
 // The package is stdlib-only.
 package kyma
@@ -66,55 +66,12 @@ func NewProvider(opts ...Option) *Provider {
 	return p
 }
 
-// Connectivity returns the binding for the named connectivity service
-// instance. Pass "" to match any binding whose type is "connectivity".
-func (p *Provider) Connectivity(name string) (*binding.ConnectivityBinding, error) {
-	files, err := p.findBinding("connectivity", name)
-	if err != nil {
-		return nil, err
-	}
-	return &binding.ConnectivityBinding{
-		ClientID:                 files["clientid"],
-		ClientSecret:             files["clientsecret"],
-		TokenServiceURL:          files["token_service_url"],
-		OnpremiseProxyHost:       files["onpremise_proxy_host"],
-		OnpremiseProxySocks5Port: files["onpremise_socks5_proxy_port"],
-		OnpremiseProxyHTTPPort:   files["onpremise_proxy_http_port"],
-	}, nil
-}
-
-// Destination returns the binding for the named destination service instance.
-// Pass "" to match any binding whose type is "destination".
-func (p *Provider) Destination(name string) (*binding.DestinationBinding, error) {
-	files, err := p.findBinding("destination", name)
-	if err != nil {
-		return nil, err
-	}
-	tokenSvcURL := files["token_service_url"]
-	if tokenSvcURL == "" {
-		tokenSvcURL = files["url"]
-	}
-	return &binding.DestinationBinding{
-		ClientID:        files["clientid"],
-		ClientSecret:    files["clientsecret"],
-		URI:             files["uri"],
-		TokenServiceURL: tokenSvcURL,
-	}, nil
-}
-
-// XSUAA returns the binding for the named xsuaa service instance.
-// Pass "" to match any binding whose type is "xsuaa".
-func (p *Provider) XSUAA(name string) (*binding.XSUAABinding, error) {
-	files, err := p.findBinding("xsuaa", name)
-	if err != nil {
-		return nil, err
-	}
-	return &binding.XSUAABinding{
-		ClientID:     files["clientid"],
-		ClientSecret: files["clientsecret"],
-		URL:          files["url"],
-		UAADomain:    files["uaadomain"],
-	}, nil
+// Binding returns the raw key/value credentials for the named service instance.
+// Pass an empty name to match the first binding whose type equals serviceType.
+// Use the typed extractor functions in the binding package (binding.Connectivity,
+// binding.Destination, binding.XSUAA) to convert the map to a concrete struct.
+func (p *Provider) Binding(serviceType, name string) (map[string]string, error) {
+	return p.findBinding(serviceType, name)
 }
 
 // findBinding returns the file map for a binding directory matching wantType,

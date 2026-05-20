@@ -8,3 +8,10 @@ require (
 	github.com/bluefunda/btp-go/destination v0.2.0
 	github.com/bluefunda/btp-go/xsuaa v0.1.2
 )
+
+replace (
+	github.com/bluefunda/btp-go/binding => ../binding
+	github.com/bluefunda/btp-go/connectivity => ../connectivity
+	github.com/bluefunda/btp-go/destination => ../destination
+	github.com/bluefunda/btp-go/xsuaa => ../xsuaa
+)
