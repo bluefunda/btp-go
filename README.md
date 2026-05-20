@@ -68,6 +68,23 @@ xb, _ := binding.XSUAA(prov, "")         // *binding.XSUAABinding
 Adding support for a new SAP service type requires only a new extractor
 function, not a change to the `Provider` interface.
 
+### Destination API
+
+`destination.Destination` exposes helper methods for common field access:
+
+```go
+import "github.com/bluefunda/btp-go/destination"
+
+dest, _ := client.Find(ctx, "MY_DEST")
+
+portNum, err := dest.PortNum()       // parses Port as uint16
+user    := dest.ResolvedUser()       // checks User field, then Properties["User"]
+pass    := dest.ResolvedPassword()   // checks Password field, then Properties["Password"]
+```
+
+These helpers remove the need for inline `strconv.ParseUint` calls and manual
+`Properties` map lookups in calling code.
+
 ## Quickstart
 
 **SFTP over Cloud Connector** — [`examples/sftp-count`](examples/sftp-count/)

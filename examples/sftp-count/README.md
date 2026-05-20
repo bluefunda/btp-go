@@ -7,10 +7,12 @@ A minimal Cloud Foundry application that exposes:
 
 ## About this example
 
-`sftp-count` wires SSH at the **primitive level**: it calls `connectivity.Dialer.Dial`
-to get a raw `net.Conn`, then builds `ssh.ClientConfig` by hand, calls
-`ssh.NewClientConn`, and assembles `ssh.NewClient` itself. There is no retry
-logic for transient sshd `MaxStartups` rejections.
+`sftp-count` wires SSH at the **primitive level**: it calls `dest.PortNum()` to
+parse the port, `dest.ResolvedUser()` / `dest.ResolvedPassword()` to get
+credentials, `connectivity.Dialer.Dial` to open a SOCKS5 tunnel, and then
+builds `ssh.ClientConfig` by hand, calls `ssh.NewClientConn`, and assembles
+`ssh.NewClient` itself. There is no retry logic for transient sshd
+`MaxStartups` rejections.
 
 This is intentional — it exists to show how the low-level `connectivity` and
 `destination` primitives compose with `golang.org/x/crypto/ssh` when you need

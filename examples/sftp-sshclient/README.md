@@ -42,9 +42,10 @@ Per request — GET /sftp/count?destination=MY_SFTP_DEST
 builds `*ssh.ClientConfig` by hand, and calls `ssh.NewClientConn` — no retry.
 
 This example uses `sshclient.Dial` instead — the high-level wrapper that
-handles port parsing, SSH config assembly from destination properties
-(`User`, `Password`, `sshKey`), and automatic retry on transient `MaxStartups`
-rejections from sshd. The SFTP logic above the dial point is identical.
+handles port parsing via `dest.PortNum()`, SSH config assembly via
+`dest.ResolvedUser()` / `dest.ResolvedPassword()` / `dest.Properties["sshKey"]`,
+and automatic retry on transient `MaxStartups` rejections from sshd.
+The SFTP logic above the dial point is identical.
 
 ## Prerequisites
 

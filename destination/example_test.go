@@ -24,5 +24,38 @@ func ExampleClient_Find() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("host=%s port=%s user=%s\n", dest.Host, dest.Port, dest.User)
+	fmt.Printf("host=%s port=%s user=%s\n", dest.Host, dest.Port, dest.ResolvedUser())
+}
+
+func ExampleDestination_PortNum() {
+	// dest is resolved via client.Find; constructed directly here for illustration.
+	dest := &destination.Destination{Port: "22"}
+
+	portNum, err := dest.PortNum()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(portNum)
+	// Output:
+	// 22
+}
+
+func ExampleDestination_ResolvedUser() {
+	// ResolvedUser checks the top-level User field first, then Properties["User"].
+	dest := &destination.Destination{
+		Properties: map[string]string{"User": "sftpuser"},
+	}
+	fmt.Println(dest.ResolvedUser())
+	// Output:
+	// sftpuser
+}
+
+func ExampleDestination_ResolvedPassword() {
+	// ResolvedPassword checks the top-level Password field first, then Properties["Password"].
+	dest := &destination.Destination{
+		Properties: map[string]string{"Password": "secret"},
+	}
+	fmt.Println(dest.ResolvedPassword())
+	// Output:
+	// secret
 }

@@ -53,9 +53,9 @@ func sftpCountHandler(destClient *destination.Client, dialer *connectivity.Diale
 			return
 		}
 
-		// sshclient.Dial handles port parsing, SSH config from dest.User /
-		// dest.Properties["sshKey"] / dest.Properties["Password"], and retry
-		// on transient MaxStartups rejections from sshd.
+		// sshclient.Dial handles port parsing, SSH config assembly from
+		// dest.ResolvedUser() / dest.ResolvedPassword() / dest.Properties["sshKey"],
+		// and retry on transient MaxStartups rejections from sshd.
 		sshc, err := sshclient.Dial(ctx, sshclient.Config{
 			Dialer: dialer,
 			RetryOpts: sshclient.RetryOpts{

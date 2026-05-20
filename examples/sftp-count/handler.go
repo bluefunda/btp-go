@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/bluefunda/btp-go/connectivity"
@@ -67,15 +66,15 @@ func sftpCountHandler(destClient *destination.Client, dialer *connectivity.Diale
 		}
 
 		// Step 2: Parse the port.
-		port64, err := strconv.ParseUint(dest.Port, 10, 16)
+		portNum, err := dest.PortNum()
 		if err != nil {
 			slog.ErrorContext(ctx, "parse port", "port", dest.Port, "err", err)
-			writeJSON(w, http.StatusInternalServerError, errResponse{Error: fmt.Sprintf("invalid port %q: %v", dest.Port, err)})
+			writeJSON(w, http.StatusInternalServerError, errResponse{Error: err.Error()})
 			return
 		}
 
 		// Step 3: Dial through SOCKS5 proxy.
-		conn, err := dialer.Dial(ctx, dest.Host, uint16(port64), dest.CloudConnectorLocationID)
+		conn, err := dialer.Dial(ctx, dest.Host, portNum, dest.CloudConnectorLocationID)
 		if err != nil {
 			slog.ErrorContext(ctx, "socks5 dial", "host", dest.Host, "port", dest.Port, "err", err)
 			writeJSON(w, http.StatusInternalServerError, errResponse{Error: fmt.Sprintf("socks5 dial: %v", err)})
@@ -140,9 +139,9 @@ func sftpCountHandler(destClient *destination.Client, dialer *connectivity.Diale
 // buildSSHConfig constructs an ssh.ClientConfig from the destination properties.
 // It supports:
 //   - Key-based auth: dest.Properties["sshKey"] (PEM-encoded private key)
-//   - Password auth: dest.Properties["Password"]
+//   - Password auth: dest.ResolvedPassword() (checks Password field then Properties["Password"])
 func buildSSHConfig(dest *destination.Destination) (*ssh.ClientConfig, error) {
-	user := dest.Properties["User"]
+	user := dest.ResolvedUser()
 	if user == "" {
 		user = "root"
 	}
@@ -159,7 +158,7 @@ func buildSSHConfig(dest *destination.Destination) (*ssh.ClientConfig, error) {
 	}
 
 	// Fall back to password auth.
-	if pass := dest.Properties["Password"]; pass != "" {
+	if pass := dest.ResolvedPassword(); pass != "" {
 		authMethods = append(authMethods, ssh.Password(pass))
 	}
 
