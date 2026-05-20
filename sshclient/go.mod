@@ -3,8 +3,8 @@ module github.com/bluefunda/btp-go/sshclient
 go 1.25.10
 
 require (
-	github.com/bluefunda/btp-go/connectivity v0.0.0-20260427152307-2cf3010a09c8
-	github.com/bluefunda/btp-go/destination v0.0.0-20260427152307-2cf3010a09c8
+	github.com/bluefunda/btp-go/connectivity v0.1.3
+	github.com/bluefunda/btp-go/destination v0.3.0
 	golang.org/x/crypto v0.50.0
 )
 
