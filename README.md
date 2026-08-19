@@ -17,6 +17,10 @@ Foundry, Kyma, or any Go-capable runtime.
 | `binding` | `github.com/bluefunda/btp-go/binding` | Parse service bindings from VCAP_SERVICES (CF), Kyma, or auto-detect |
 | `sshclient` | `github.com/bluefunda/btp-go/sshclient` | High-level SSH/SFTP client over the Cloud Connector tunnel (wraps connectivity + destination) |
 | `httpclient` | `github.com/bluefunda/btp-go/httpclient` | HTTP/REST/OData client wired for a Destination's auth + Cloud Connector tunnel; OData v2 CSRF helper |
+| `ingest` | `github.com/bluefunda/btp-go/ingest` | Generic asynchronous HTTP → NATS JetStream ingestion proxy: idempotent `/ingest` endpoint, durable publisher with backpressure |
+
+All modules are stdlib-only except `sshclient` (`golang.org/x/crypto`) and
+`ingest` (`github.com/nats-io/nats.go`).
 
 ## Dependency diagram
 
@@ -29,6 +33,7 @@ consumer app
     ├── destination    (Destination Service REST client)
     ├── sshclient      (SSH/SFTP over Cloud Connector tunnel)
     ├── httpclient     (HTTP/OData client with auth + proxy wiring)
+    ├── ingest         (generic HTTP → JetStream ingestion gateway; standalone service)
     └── xsuaa          (token source)
 
 connectivity ─── (local TokenSource interface, satisfied by xsuaa)
@@ -113,6 +118,25 @@ curl -X POST "https://<app-route>/odata?destination=MY_HTTP_DEST&path=/Items" \
   -H "Content-Type: application/json" -d '{"Name":"test"}'
 ```
 
+**HTTP → JetStream ingestion proxy** — [`ingest`](ingest/) [![Go Reference](https://pkg.go.dev/badge/github.com/bluefunda/btp-go/ingest.svg)](https://pkg.go.dev/github.com/bluefunda/btp-go/ingest)
+
+A runnable microservice (and reusable layers) that accepts business events
+over HTTP from any upstream caller, suppresses duplicates via a JetStream KV
+bucket, and publishes them durably with publisher confirms and backpressure.
+That is the whole job — it does not consume the stream back out or relay
+anywhere; whatever reads `events.>` afterward is a separate concern. A common
+deployment sits in front of an SAP ABAP system's HTTP destination
+configuration, but nothing about the gateway assumes SAP.
+
+```bash
+docker run --rm -p 4222:4222 nats:2.10-alpine -js
+cd ingest && API_KEYS=local-dev-key-0123456789 IDEMPOTENCY_BACKEND=memory go run ./cmd/gateway
+curl -X POST localhost:8080/ingest -H "X-API-Key: local-dev-key-0123456789" \
+  -H 'Content-Type: application/json' \
+  -d '{"business_object":"BILLING_DOC","operation":"CREATE","key":"EVT-1928340192",
+       "timestamp":"2023-10-27T10:00:00Z","payload":{"amount":"1234.56"}}'
+```
+
 **SFTP via sshclient** — [`examples/sftp-sshclient`](examples/sftp-sshclient/)
 shows the same SFTP count use-case as `sftp-count` but uses `sshclient.Dial`
 (the high-level wrapper with retry) instead of raw `golang.org/x/crypto/ssh`.
@@ -141,6 +165,7 @@ go test ./...
 | **M3** | ✅ shipped | HTTP destination support — `httpclient.New(dest, cfg)` returns a configured `*http.Client` (auth headers, Cloud Connector dialer, cookie jar) plus `FetchCSRF` for OData v2 writes |
 | **M4** | ✅ shipped | Kyma `binding` provider — reads Servicebinding.io file-mounted secrets; handles per-key files, JSON-blob fallback, and Kubernetes atomic-update sentinels |
 | **M5** | planned | Principal propagation and user-token-exchange flows in `xsuaa` |
+| **M6** | ✅ shipped | `ingest` — generic asynchronous HTTP → NATS JetStream ingestion proxy: idempotent HTTP ingestion, durable publishing with confirms and backpressure |
 
 ## Support model
 
