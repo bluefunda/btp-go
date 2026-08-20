@@ -103,6 +103,127 @@ HTTP/1.1 409 Conflict
 {"trace_id":"...","status":"duplicate","subject":"events.billing_doc.create", ...}
 ```
 
+### Client code samples
+
+The gateway is just JSON over HTTP, so any caller that can send that works.
+Two representative ones:
+
+**Go**
+
+```go
+// poster.go — an upstream caller posting one business event to the gateway.
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+)
+
+type event struct {
+	BusinessObject string          `json:"business_object"`
+	Operation      string          `json:"operation"`
+	Key            string          `json:"key"`
+	Timestamp      string          `json:"timestamp"`
+	Payload        json.RawMessage `json:"payload"`
+}
+
+func main() {
+	ev := event{
+		BusinessObject: "BILLING_DOC",
+		Operation:      "CREATE",
+		Key:            "EVT-1928340192",
+		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+		Payload:        json.RawMessage(`{"amount":"1234.56","currency":"EUR"}`),
+	}
+
+	body, err := json.Marshal(ev)
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/ingest", bytes.NewReader(body))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", "local-dev-key-0123456789")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("%s\n%s\n", resp.Status, respBody)
+}
+```
+
+A `202` means queued (or stored, with `PUBLISH_SYNC=true`); a `409` means the
+same `business_object`/`key` was already seen inside the idempotency TTL and
+is safe to ignore on retry; anything else carries a machine-readable `code`
+field in the body worth branching on.
+
+**ABAP**
+
+The common deployment is an ABAP system posting through an HTTP destination
+maintained in transaction `SM59` (RFC destination type `G`/`H`, host and path
+pointing at the gateway's `/ingest`), so no destination-specific setup is
+shown here beyond the destination name itself:
+
+```abap
+"! Posts one business event to the ingest gateway via an HTTP
+"! destination maintained in transaction SM59.
+DATA: lo_client TYPE REF TO if_http_client,
+      lv_body   TYPE string,
+      lv_status TYPE i,
+      lv_resp   TYPE string.
+
+cl_http_client=>create_by_destination(
+  EXPORTING
+    destination = 'INGEST_GATEWAY'
+  IMPORTING
+    client      = lo_client
+  EXCEPTIONS
+    OTHERS      = 1 ).
+IF sy-subrc <> 0.
+  " destination not found or misconfigured
+  RETURN.
+ENDIF.
+
+lo_client->request->set_method( if_http_request=>co_request_method_post ).
+lo_client->request->set_header_field( name = 'Content-Type' value = 'application/json' ).
+lo_client->request->set_header_field( name = 'X-API-Key'    value = 'local-dev-key-0123456789' ).
+
+lv_body = |\{ "business_object": "BILLING_DOC", "operation": "CREATE", | &&
+          |"key": "EVT-1928340192", | &&
+          |"timestamp": "{ sy-datum DATE = ISO }T{ sy-uzeit TIME = ISO }Z", | &&
+          |"payload": \{ "amount": "1234.56", "currency": "EUR" \} \}|.
+
+lo_client->request->set_cdata( lv_body ).
+
+lo_client->send( EXCEPTIONS OTHERS = 1 ).
+lo_client->receive( EXCEPTIONS OTHERS = 1 ).
+
+lo_client->response->get_status( IMPORTING code = lv_status ).
+lv_resp = lo_client->response->get_cdata( ).
+
+CASE lv_status.
+  WHEN 202.
+    " accepted — lv_resp carries trace_id, status, and subject
+  WHEN 409.
+    " duplicate within the TTL window — safe to ignore on retry
+  WHEN OTHERS.
+    " 4xx/5xx — lv_resp carries a machine-readable `code` field
+ENDCASE.
+
+lo_client->close( ).
+```
+
 ### Watch it move
 
 With the [`nats` CLI](https://github.com/nats-io/natscli):
@@ -118,6 +239,77 @@ nats kv get IDEMPOTENCY BILLING_DOC.EVT-1928340192
 Whatever consumes `events.>` afterward — a separate service, a different
 team's consumer, a batch job — is outside this gateway's concern. It only
 guarantees the event landed on the stream exactly once.
+
+### Consuming a published event
+
+A minimal Go consumer for the `BILLING_DOC`/`CREATE` event posted above,
+using a durable JetStream pull consumer so restarts resume where they left
+off instead of replaying or dropping messages:
+
+```go
+// consumer.go — a separate service reading events the gateway published.
+// It is independent of the gateway; any number of these can read the same
+// stream at their own pace under JetStream's pull-consumer model.
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+)
+
+func main() {
+	nc, err := nats.Connect("nats://127.0.0.1:4222")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer nc.Close()
+
+	js, err := jetstream.New(nc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	stream, err := js.Stream(ctx, "EVENTS")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Durable, so the consumer's position survives a restart, and filtered
+	// to exactly the subject the earlier example published to.
+	cons, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Durable:       "billing-doc-create-consumer",
+		FilterSubject: "events.billing_doc.create",
+		AckPolicy:     jetstream.AckExplicitPolicy,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		msgs, err := cons.Fetch(10, jetstream.FetchMaxWait(5*time.Second))
+		if err != nil {
+			log.Println("fetch:", err)
+			continue
+		}
+		for msg := range msgs.Messages() {
+			fmt.Printf("subject=%s trace_id=%s\n%s\n",
+				msg.Subject(), msg.Headers().Get("X-Trace-Id"), msg.Data())
+			_ = msg.Ack()
+		}
+	}
+}
+```
+
+`AckExplicitPolicy` means a message that is fetched but never acked (the
+process crashes mid-handling) is redelivered rather than lost — ack only
+after the event is durably handled on the consumer's side.
 
 ## Docker
 
