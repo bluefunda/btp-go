@@ -21,6 +21,7 @@ jobs:
           - binding
           - sshclient
           - httpclient
+          - ingest
           - examples/sftp-count
           - examples/sftp-sshclient
           - examples/http-odata
@@ -61,6 +62,15 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      # ingest ships end-to-end tests that drive a real JetStream server.
+      # They skip when no nats-server is on PATH, so install one to make
+      # them actually run.
+      - name: Install nats-server
+        if: matrix.module == 'ingest'
+        run: |
+          go install github.com/nats-io/nats-server/v2@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Test
         run: go test -race -coverprofile=coverage.out ./...

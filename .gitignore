@@ -39,3 +39,4 @@ NEW_FILE.txt
 
 # Compiled binaries in examples (binary same name as directory — match by path)
 examples/sftp-count/sftp-count
+ingest/cmd/gateway/gateway

@@ -10,6 +10,7 @@ use (
 	./examples/sftp-count
 	./examples/sftp-sshclient
 	./httpclient
+	./ingest
 	./sshclient
 	./xsuaa
 )

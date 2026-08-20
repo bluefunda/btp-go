@@ -16,6 +16,10 @@
 //     VCAP_SERVICES (Cloud Foundry), Kyma file mounts, or auto-detect
 //   - [github.com/bluefunda/btp-go/sshclient] — high-level SSH/SFTP client over
 //     the Cloud Connector tunnel (wraps connectivity + destination)
+//   - [github.com/bluefunda/btp-go/httpclient] — HTTP/REST/OData client wired
+//     for a Destination's auth and Cloud Connector tunnel
+//   - [github.com/bluefunda/btp-go/ingest] — generic asynchronous HTTP to NATS
+//     JetStream ingestion proxy with idempotency and durable publishing
 //
 // # Getting started
 //
