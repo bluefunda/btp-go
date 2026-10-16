@@ -1,6 +1,6 @@
 module github.com/bluefunda/btp-go/examples/http-odata
 
-go 1.25.10
+go 1.26.6
 
 require (
 	github.com/bluefunda/btp-go/binding v0.2.0
