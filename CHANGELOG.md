@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/bluefunda/btp-go/compare/v1.0.0...v1.0.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* bump x/crypto to v0.56.0 and run CI on Go 1.26 for govulncheck ([#24](https://github.com/bluefunda/btp-go/issues/24)) ([f04ad40](https://github.com/bluefunda/btp-go/commit/f04ad40ea3675fcd3f766155198c2ebf9a511508))
+
 ## [1.0.0](https://github.com/bluefunda/btp-go/compare/v0.4.0...v1.0.0) (2026-05-20)
 
 
