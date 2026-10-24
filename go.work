@@ -2,7 +2,6 @@ go 1.26.6
 
 use (
 	.
-	../odata-go
 	./binding
 	./connectivity
 	./destination
