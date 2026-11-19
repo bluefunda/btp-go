@@ -8,7 +8,7 @@ require (
 	github.com/bluefunda/btp-go/destination v0.3.0
 	github.com/bluefunda/btp-go/sshclient v0.2.1
 	github.com/bluefunda/btp-go/xsuaa v0.1.3
-	github.com/pkg/sftp v1.13.11
+	github.com/pkg/sftp v1.13.12
 )
 
 require (
